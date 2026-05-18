@@ -236,16 +236,15 @@ body{background:radial-gradient(ellipse 80% 60% at 50% 40%,#131820 0%,#0e1117 10
 (function(){
   const slides = Array.from(document.querySelectorAll('.slide'));
   const TOTAL = slides.length;
-  let si = 0;
-  let step = 0;
+  let si = 0, step = 0;
   const stepCounts = slides.map(s => parseInt(s.dataset.steps) || 1);
 
-  // Dots
+  // HUD dots
   const hdots = document.getElementById('hdots');
   slides.forEach((_,i)=>{
     const d = document.createElement('div');
     d.className = 'hdot'+(i===0?' on':'');
-    d.addEventListener('click', ()=>goSlide(i));
+    d.addEventListener('click',()=>goSlide(i));
     hdots.appendChild(d);
   });
   const dots = Array.from(hdots.children);
@@ -253,49 +252,93 @@ body{background:radial-gradient(ellipse 80% 60% at 50% 40%,#131820 0%,#0e1117 10
   const hbarF = document.getElementById('hbarF');
 
   // Audio
-  const CHAPTERS = [
-    {file:'chapter1.wav',label:'什么是数学建模'},
-    {file:'chapter2.wav',label:'六步建模法'},
-    {file:'chapter3.wav',label:'工具箱'},
-    {file:'chapter4.wav',label:'论文写作'},
-    {file:'chapter5.wav',label:'学习建议'},
-    {file:'chapter6.wav',label:'总结与预告'},
+  const CH = [
+    {f:'chapter1.wav',l:'什么是数学建模'},
+    {f:'chapter2.wav',l:'六步建模法'},
+    {f:'chapter3.wav',l:'工具箱'},
+    {f:'chapter4.wav',l:'论文写作'},
+    {f:'chapter5.wav',l:'学习建议'},
+    {f:'chapter6.wav',l:'总结与预告'},
   ];
   const audio = new Audio();
-  let playing = false, muted = false, started = false;
+  let started = false, playing = false, muted = false;
+  let autoAdvancing = false; // true while waiting to auto-advance after audio ends
   const aTitle = document.getElementById('aTitle');
   const aProg = document.getElementById('aProg');
   const aPlay = document.getElementById('aPlay');
   const aMute = document.getElementById('aMute');
 
+  // --- Audio-driven reveal ---
+  // When audio is playing, steps reveal based on currentTime.
+  // When audio ends, auto-advance to next slide after a short pause.
+  function getStepTimes(n){
+    // Returns an array of timestamps [t0, t1, ...] at which each step should reveal.
+    // Steps are evenly distributed across the audio duration.
+    const dur = audio.duration || 30;
+    const count = stepCounts[n];
+    if(count <= 1) return [0];
+    // First step at 0.5s (give a moment), then evenly after
+    const interval = (dur - 0.5) / count;
+    const times = [];
+    for(let i = 0; i < count; i++){
+      times.push(0.5 + interval * i);
+    }
+    return times;
+  }
+
+  audio.addEventListener('timeupdate',()=>{
+    if(!started || !audio.duration) return;
+    // Update progress bar
+    aProg.style.width = (audio.currentTime / audio.duration * 100) + '%';
+    // Check if next step should reveal
+    const times = getStepTimes(si);
+    while(step < times.length - 1 && audio.currentTime >= times[step + 1]){
+      step++;
+      showStep(si, step);
+    }
+  });
+
+  audio.addEventListener('ended',()=>{
+    playing = false;
+    aPlay.innerHTML = '&#9654;';
+    // Reveal any remaining steps that weren't shown
+    while(step < stepCounts[si] - 1){ step++; showStep(si, step); }
+    // Auto-advance to next slide after a pause
+    if(si < TOTAL - 1){
+      autoAdvancing = true;
+      setTimeout(()=>{
+        autoAdvancing = false;
+        if(si < TOTAL - 1) goSlide(si + 1);
+      }, 1200);
+    }
+  });
+
   function playAudio(n){
-    audio.src = CHAPTERS[n].file;
+    audio.pause();
+    audio.src = CH[n].f;
     audio.currentTime = 0;
     audio.play().then(()=>{
       playing = true;
       aPlay.innerHTML = '&#10074;&#10074;';
-      aTitle.textContent = CHAPTERS[n].label;
+      aTitle.textContent = CH[n].l;
     }).catch(()=>{});
   }
-  audio.addEventListener('ended',()=>{playing=false;aPlay.innerHTML='&#9654;';});
-  audio.addEventListener('timeupdate',()=>{
-    if(audio.duration) aProg.style.width=(audio.currentTime/audio.duration*100)+'%';
-  });
+
   aPlay.addEventListener('click',()=>{
-    if(!started){started=true;playAudio(si);return;}
-    if(playing){audio.pause();playing=false;aPlay.innerHTML='&#9654;';}
-    else{audio.play();playing=true;aPlay.innerHTML='&#10074;&#10074;';}
+    if(!started){ started = true; goSlide(0); return; }
+    if(playing){ audio.pause(); playing = false; aPlay.innerHTML = '&#9654;'; }
+    else{ audio.play(); playing = true; aPlay.innerHTML = '&#10074;&#10074;'; }
   });
   aMute.addEventListener('click',()=>{
-    muted=!muted;audio.muted=muted;
-    aMute.innerHTML=muted?'&#128263;':'&#128264;';
+    muted = !muted; audio.muted = muted;
+    aMute.innerHTML = muted ? '&#128263;' : '&#128264;';
   });
 
-  // Reveal
+  // --- Reveal helpers ---
   function showStep(slideIdx, stepIdx){
     slides[slideIdx].querySelectorAll('.reveal').forEach(el=>{
       const s = el.classList.contains('d4')?4:el.classList.contains('d3')?3:el.classList.contains('d2')?2:el.classList.contains('d1')?1:0;
-      if(s<=stepIdx) el.classList.add('show');
+      if(s <= stepIdx) el.classList.add('show');
     });
   }
   function hideSlide(idx){
@@ -304,47 +347,85 @@ body{background:radial-gradient(ellipse 80% 60% at 50% 40%,#131820 0%,#0e1117 10
   }
   function updateHUD(){
     dots.forEach((d,i)=>d.classList.toggle('on',i===si));
-    hcnt.textContent=(si+1)+' / '+TOTAL;
-    hbarF.style.width=((si+1)/TOTAL*100)+'%';
+    hcnt.textContent = (si+1)+' / '+TOTAL;
+    hbarF.style.width = ((si+1)/TOTAL*100)+'%';
   }
+
+  // --- Navigation ---
   function goSlide(n){
-    if(n<0||n>=TOTAL||n===si)return;
-    hideSlide(si);si=n;step=0;
+    if(n < 0 || n >= TOTAL || n === si) return;
+    autoAdvancing = false;
+    audio.pause();
+    hideSlide(si);
+    si = n; step = 0;
     slides[si].classList.add('active');
-    showStep(si,0);updateHUD();
+    showStep(si, 0);
+    updateHUD();
     if(started) playAudio(si);
   }
+
   function forward(){
-    if(step<stepCounts[si]-1){step++;showStep(si,step);if(!started){started=true;playAudio(si);}return;}
-    if(si<TOTAL-1){hideSlide(si);si++;step=0;slides[si].classList.add('active');showStep(si,0);updateHUD();if(started)playAudio(si);}
-  }
-  function backward(){
-    if(step>0){
-      slides[si].querySelectorAll('.reveal').forEach(el=>{
-        const s=el.classList.contains('d4')?4:el.classList.contains('d3')?3:el.classList.contains('d2')?2:el.classList.contains('d1')?1:0;
-        if(s>=step) el.classList.remove('show');
-      });
-      step--;return;
+    if(!started){ started = true; goSlide(0); return; }
+    // Cancel any pending auto-advance
+    autoAdvancing = false;
+    // If current slide has unrevealed steps, show all remaining then let audio continue
+    if(step < stepCounts[si] - 1){
+      const times = getStepTimes(si);
+      // Reveal all remaining steps immediately
+      while(step < stepCounts[si] - 1){ step++; showStep(si, step); }
+      // Seek audio forward to match current step
+      if(audio.duration && times[step]) audio.currentTime = times[step];
+      return;
     }
-    if(si>0){hideSlide(si);si--;step=stepCounts[si]-1;slides[si].classList.add('active');showStep(si,step);updateHUD();if(started)playAudio(si);}
+    // All steps shown — go to next slide
+    if(si < TOTAL - 1) goSlide(si + 1);
   }
 
+  function backward(){
+    autoAdvancing = false;
+    if(step > 0){
+      // Hide current step
+      slides[si].querySelectorAll('.reveal').forEach(el=>{
+        const s = el.classList.contains('d4')?4:el.classList.contains('d3')?3:el.classList.contains('d2')?2:el.classList.contains('d1')?1:0;
+        if(s >= step) el.classList.remove('show');
+      });
+      step--;
+      // Seek audio back to match
+      const times = getStepTimes(si);
+      if(audio.duration && times[step] != null) audio.currentTime = times[step];
+      return;
+    }
+    // At first step — go to previous slide, show its last step
+    if(si > 0){
+      hideSlide(si);
+      si--;
+      step = stepCounts[si] - 1;
+      slides[si].classList.add('active');
+      showStep(si, step);
+      updateHUD();
+      if(started) playAudio(si);
+    }
+  }
+
+  // --- Input ---
   document.addEventListener('keydown',e=>{
-    if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();forward();}
-    else if(e.key==='ArrowLeft'){e.preventDefault();backward();}
+    if(e.key === 'ArrowRight' || e.key === ' '){ e.preventDefault(); forward(); }
+    else if(e.key === 'ArrowLeft'){ e.preventDefault(); backward(); }
   });
   document.addEventListener('click',e=>{
-    if(e.target.closest('.hud')||e.target.closest('.ahud'))return;
+    if(e.target.closest('.hud') || e.target.closest('.ahud')) return;
     forward();
   });
-  let tx=0;
-  document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX},{passive:true});
+  let tx = 0;
+  document.addEventListener('touchstart',e=>{ tx = e.touches[0].clientX; },{passive:true});
   document.addEventListener('touchend',e=>{
-    const dx=e.changedTouches[0].clientX-tx;
-    if(Math.abs(dx)>60){dx<0?forward():backward();}
+    const dx = e.changedTouches[0].clientX - tx;
+    if(Math.abs(dx) > 60){ dx < 0 ? forward() : backward(); }
   },{passive:true});
 
-  showStep(0,0);updateHUD();
+  // Init — show first step of first slide, wait for user click to start audio
+  showStep(0, 0);
+  updateHUD();
 })();
 </script>
 </body>
