@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频任务队列 — 数学建模系列</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --heading: 'Noto Sans SC', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+      --accent: oklch(0.55 0.22 250);
+      --accent-light: oklch(0.72 0.14 250);
+      --accent-glow: oklch(0.60 0.28 250);
+      --success: oklch(0.65 0.20 155);
+      --success-dim: oklch(0.30 0.08 155);
+      --danger: oklch(0.55 0.22 25);
+      --danger-dim: oklch(0.30 0.08 25);
+      --warm: oklch(0.70 0.18 30);
+      --bg-deep: oklch(0.13 0.015 250);
+      --bg-surface: oklch(0.17 0.015 250);
+      --bg-card: oklch(0.19 0.015 250);
+      --text: oklch(0.95 0.005 250);
+      --text-muted: oklch(0.60 0.02 250);
+      --text-dim: oklch(0.45 0.02 250);
+      --border: oklch(0.28 0.02 250);
+      --gray: oklch(0.50 0.01 250);
+      --gray-dim: oklch(0.30 0.01 250);
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg-deep);
+      color: var(--text);
+      font-family: var(--heading);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ========== GLOBAL STATS BAR ========== */
+    .stats-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: oklch(0.15 0.015 250 / 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+    }
+
+    .stats-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .stats-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .stats-title span {
+      color: var(--accent-light);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      margin-left: 8px;
+    }
+
+    .global-progress-wrap {
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .global-progress-bar {
+      flex: 1;
+      height: 8px;
+      background: var(--gray-dim);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .global-progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      width: 0%;
+      transition: width 0.4s ease;
+      position: relative;
+    }
+
+    .global-progress-fill::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.25), transparent);
+      animation: shimmer 1.8s ease-in-out infinite;
+    }
+
+    .global-pct {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-light);
+      min-width: 42px;
+      text-align: right;
+    }
+
+    .stats-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .stat-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      font-family: var(--mono);
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .stat-chip .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    .stat-chip.completed { background: oklch(0.22 0.05 155); color: var(--success); }
+    .stat-chip.completed .dot { background: var(--success); }
+    .stat-chip.active { background: oklch(0.22 0.05 250); color: var(--accent-light); }
+    .stat-chip.active .dot { background: var(--accent-light); animation: pulse 1.5s ease infinite; }
+    .stat-chip.waiting { background: oklch(0.20 0.01 250); color: var(--gray); }
+    .stat-chip.waiting .dot { background: var(--gray); }
+    .stat-chip.failed { background: oklch(0.22 0.05 25); color: var(--danger); }
+    .stat-chip.failed .dot { background: var(--danger); }
+
+    .stats-timer {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    /* ========== CONTROLS ========== */
+    .controls {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px 32px 0;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn {
+      font-family: var(--heading);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 24px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.25s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      color: white;
+      box-shadow: 0 4px 20px oklch(0.55 0.22 250 / 0.3);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 30px oklch(0.55 0.22 250 / 0.45); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-secondary {
+      background: var(--bg-surface);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--text); }
+
+    .btn-danger {
+      background: oklch(0.22 0.06 25);
+      color: var(--danger);
+      border: 1px solid oklch(0.35 0.08 25);
+    }
+    .btn-danger:hover { background: oklch(0.26 0.08 25); }
+    .btn-danger:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .controls-info {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: var(--mono);
+    }
+
+    /* ========== CARDS GRID ========== */
+    .cards-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px 32px 60px;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    /* ========== TASK CARD ========== */
+    .task-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    .task-card:hover {
+      border-color: oklch(0.35 0.02 250);
+    }
+
+    /* Active card */
+    .task-card.active {
+      border-color: var(--accent);
+      box-shadow:
+        0 0 0 1px var(--accent),
+        0 8px 40px -10px oklch(0.55 0.22 250 / 0.3),
+        inset 0 1px 0 oklch(0.55 0.22 250 / 0.1);
+      transform: translateY(-4px);
+    }
+
+    /* Completed card */
+    .task-card.completed {
+      border-color: oklch(0.35 0.06 155);
+    }
+
+    /* Failed card */
+    .task-card.failed {
+      border-color: oklch(0.40 0.08 25);
+      box-shadow: 0 0 0 1px oklch(0.40 0.08 25 / 0.3);
+    }
+
+    /* Thumbnail area */
+    .card-thumb {
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      background: oklch(0.16 0.02 250);
+    }
+
+    .card-thumb-icon {
+      font-size: 48px;
+      opacity: 0.6;
+      transition: all 0.4s;
+    }
+
+    .task-card.active .card-thumb-icon {
+      opacity: 1;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .task-card.completed .card-thumb {
+      background: oklch(0.18 0.04 155);
+    }
+    .task-card.completed .card-thumb-icon { opacity: 0.8; }
+
+    .task-card.failed .card-thumb {
+      background: oklch(0.18 0.04 25);
+    }
+
+    /* Card index badge */
+    .card-index {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: oklch(0.15 0.015 250 / 0.8);
+      backdrop-filter: blur(8px);
+      color: var(--text-muted);
+    }
+
+    /* Status badge */
+    .status-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--mono);
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      backdrop-filter: blur(8px);
+      transition: all 0.3s;
+    }
+
+    .status-badge.waiting {
+      background: oklch(0.20 0.01 250 / 0.85);
+      color: var(--gray);
+    }
+
+    .status-badge.generating {
+      background: oklch(0.25 0.08 250 / 0.85);
+      color: var(--accent-light);
+    }
+
+    .status-badge.generating .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-light);
+      animation: pulse 1s ease infinite;
+    }
+
+    .status-badge.done {
+      background: oklch(0.22 0.06 155 / 0.85);
+      color: var(--success);
+    }
+
+    .status-badge.error {
+      background: oklch(0.25 0.08 25 / 0.85);
+      color: var(--danger);
+    }
+
+    /* Card body */
+    .card-body {
+      padding: 18px 20px 20px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      margin-bottom: 14px;
+    }
+
+    /* Progress section */
+    .card-progress-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .progress-pct {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-dim);
+      transition: color 0.3s;
+    }
+
+    .task-card.active .progress-pct { color: var(--accent-light); }
+    .task-card.completed .progress-pct { color: var(--success); }
+    .task-card.failed .progress-pct { color: var(--danger); }
+
+    .progress-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--mono);
+    }
+
+    .progress-bar-wrap {
+      height: 6px;
+      background: var(--gray-dim);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 14px;
+      position: relative;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.3s ease, background 0.4s;
+      background: var(--gray);
+      position: relative;
+    }
+
+    .task-card.active .progress-bar-fill {
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+    }
+
+    .task-card.active .progress-bar-fill::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.3), transparent);
+      animation: shimmer 1.5s ease-in-out infinite;
+    }
+
+    .task-card.completed .progress-bar-fill {
+      background: var(--success);
+    }
+
+    .task-card.failed .progress-bar-fill {
+      background: var(--danger);
+    }
+
+    /* Card meta row */
+    .card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      gap: 8px;
+    }
+
+    .card-meta-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .card-meta-right {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .elapsed-time, .remain-time {
+      color: var(--text-dim);
+    }
+
+    .task-card.active .elapsed-time { color: var(--accent-light); }
+
+    /* Retry button */
+    .retry-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--danger);
+      background: oklch(0.22 0.06 25);
+      border: 1px solid oklch(0.35 0.08 25);
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .retry-btn:hover {
+      background: oklch(0.28 0.08 25);
+      transform: translateY(-1px);
+    }
+
+    /* Error message */
+    .error-msg {
+      font-size: 11px;
+      color: var(--danger);
+      font-family: var(--mono);
+      margin-top: 6px;
+      opacity: 0.8;
+    }
+
+    /* Completed checkmark overlay */
+    .done-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: oklch(0.15 0.02 155 / 0.7);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s;
+    }
+
+    .task-card.completed .done-overlay {
+      opacity: 1;
+      animation: fadeInScale 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .done-check {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--success);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .done-check svg {
+      width: 24px;
+      height: 24px;
+      stroke: white;
+      stroke-width: 3;
+      fill: none;
+    }
+
+    /* ========== ANIMATIONS ========== */
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes fadeInScale {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes cardAppear {
+      from { opacity: 0; transform: translateY(30px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .task-card {
+      animation: cardAppear 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    }
+
+    /* Stagger card appear */
+    .task-card:nth-child(1)  { animation-delay: 0.05s; }
+    .task-card:nth-child(2)  { animation-delay: 0.1s; }
+    .task-card:nth-child(3)  { animation-delay: 0.15s; }
+    .task-card:nth-child(4)  { animation-delay: 0.2s; }
+    .task-card:nth-child(5)  { animation-delay: 0.25s; }
+    .task-card:nth-child(6)  { animation-delay: 0.3s; }
+    .task-card:nth-child(7)  { animation-delay: 0.35s; }
+    .task-card:nth-child(8)  { animation-delay: 0.4s; }
+    .task-card:nth-child(9)  { animation-delay: 0.45s; }
+    .task-card:nth-child(10) { animation-delay: 0.5s; }
+    .task-card:nth-child(11) { animation-delay: 0.55s; }
+    .task-card:nth-child(12) { animation-delay: 0.6s; }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 768px) {
+      .stats-bar { padding: 12px 16px; }
+      .stats-inner { gap: 12px; }
+      .stats-chips { display: none; }
+      .controls { padding: 16px 16px 0; }
+      .cards-container { padding: 16px 16px 40px; }
+      .cards-grid { grid-template-columns: 1fr; }
+      .controls-info { display: none; }
+    }
+
+    @media (max-width: 480px) {
+      .global-progress-wrap { min-width: 120px; }
+      .stats-timer { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ========== GLOBAL STATS BAR ========== -->
+<div class="stats-bar" id="statsBar">
+  <div class="stats-inner">
+    <div class="stats-title">
+      数学建模系列
+      <span id="taskCounter">0 / 12</span>
+    </div>
+
+    <div class="global-progress-wrap">
+      <div class="global-progress-bar">
+        <div class="global-progress-fill" id="globalProgressFill"></div>
+      </div>
+      <div class="global-pct" id="globalPct">0%</div>
+    </div>
+
+    <div class="stats-chips">
+      <div class="stat-chip completed">
+        <div class="dot"></div>
+        <span id="countDone">0</span> 完成
+      </div>
+      <div class="stat-chip active">
+        <div class="dot"></div>
+        <span id="countActive">0</span> 生成中
+      </div>
+      <div class="stat-chip waiting">
+        <div class="dot"></div>
+        <span id="countWaiting">12</span> 等待
+      </div>
+      <div class="stat-chip failed">
+        <div class="dot"></div>
+        <span id="countFailed">0</span> 失败
+      </div>
+    </div>
+
+    <div class="stats-timer" id="globalTimer">00:00</div>
+  </div>
+</div>
+
+<!-- ========== CONTROLS ========== -->
+<div class="controls">
+  <button class="btn btn-primary" id="btnStart" onclick="startQueue()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+    开始生成
+  </button>
+  <button class="btn btn-secondary" id="btnPause" onclick="togglePause()" style="display:none;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+    暂停
+  </button>
+  <button class="btn btn-danger" id="btnRetryFailed" onclick="retryAllFailed()" style="display:none;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+    重试失败项
+  </button>
+  <button class="btn btn-secondary" id="btnReset" onclick="resetAll()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+    重置
+  </button>
+  <div class="controls-info" id="controlsInfo">12 个视频任务等待生成</div>
+</div>
+
+<!-- ========== CARDS GRID ========== -->
+<div class="cards-container">
+  <div class="cards-grid" id="cardsGrid"></div>
+</div>
+
+<script>
+// ========== TASK DATA ==========
+const TASKS_DATA = [
+  { id: 1,  title: '数学建模概述',     sub: 'Introduction',          icon: '&#x1F4D0;', duration: 8  },
+  { id: 2,  title: '六步建模法',       sub: 'Six-Step Method',       icon: '&#x1F522;', duration: 12 },
+  { id: 3,  title: '层次分析法 AHP',   sub: 'Analytic Hierarchy',    icon: '&#x1F3AF;', duration: 15 },
+  { id: 4,  title: '线性规划',         sub: 'Linear Programming',    icon: '&#x1F4CA;', duration: 18 },
+  { id: 5,  title: '回归分析',         sub: 'Regression Analysis',   icon: '&#x1F4C8;', duration: 14 },
+  { id: 6,  title: '微分方程模型',     sub: 'Differential Equations', icon: '&#x2202;',  duration: 20 },
+  { id: 7,  title: '灰色预测 GM(1,1)', sub: 'Grey Prediction',       icon: '&#x1F52E;', duration: 16 },
+  { id: 8,  title: '图论与网络流',     sub: 'Graph Theory',          icon: '&#x1F578;', duration: 17 },
+  { id: 9,  title: '蒙特卡洛模拟',     sub: 'Monte Carlo',           icon: '&#x1F3B2;', duration: 13 },
+  { id: 10, title: '评价与决策模型',   sub: 'Evaluation Models',     icon: '&#x2696;',  duration: 15 },
+  { id: 11, title: '论文写作规范',     sub: 'Paper Writing',         icon: '&#x270D;',  duration: 10 },
+  { id: 12, title: '竞赛实战演练',     sub: 'Contest Practice',      icon: '&#x1F3C6;', duration: 22 },
+];
+
+// Task status: 'waiting' | 'generating' | 'done' | 'failed'
+const tasks = TASKS_DATA.map(d => ({
+  ...d,
+  status: 'waiting',
+  progress: 0,
+  elapsed: 0,
+  estimated: d.duration,
+  errorMsg: '',
+}));
+
+const TOTAL = tasks.length;
+let queueRunning = false;
+let paused = false;
+let currentIdx = -1;
+let globalStartTime = 0;
+let globalElapsed = 0;
+let timerInterval = null;
+let progressInterval = null;
+
+// ========== RENDER ==========
+function renderCards() {
+  const grid = document.getElementById('cardsGrid');
+  grid.innerHTML = tasks.map((t, i) => {
+    const isActive = t.status === 'generating';
+    const isDone = t.status === 'done';
+    const isFailed = t.status === 'failed';
+
+    const statusClass = t.status;
+    const cardClass = `task-card ${statusClass}`;
+
+    let badgeHTML = '';
+    if (t.status === 'waiting')  badgeHTML = '<div class="status-badge waiting">&#x23F3; 等待中</div>';
+    if (t.status === 'generating') badgeHTML = '<div class="status-badge generating"><div class="status-dot"></div>生成中</div>';
+    if (t.status === 'done')    badgeHTML = '<div class="status-badge done">&#x2714; 已完成</div>';
+    if (t.status === 'failed')  badgeHTML = '<div class="status-badge error">&#x2716; 失败</div>';
+
+    const elapsedStr = formatTime(t.elapsed);
+    const remainStr = isActive ? formatTime(Math.max(0, t.estimated - t.elapsed)) : '--:--';
+
+    let extraHTML = '';
+    if (isFailed && t.errorMsg) {
+      extraHTML += `<div class="error-msg">${t.errorMsg}</div>`;
+    }
+    if (isFailed) {
+      extraHTML += `<button class="retry-btn" onclick="retryOne(${i})">&#x21BB; 重试</button>`;
+    }
+
+    return `
+      <div class="${cardClass}" id="card-${i}">
+        <div class="card-thumb">
+          <div class="card-index">${i + 1} / ${TOTAL}</div>
+          ${badgeHTML}
+          <div class="card-thumb-icon">${t.icon}</div>
+          <div class="done-overlay">
+            <div class="done-check">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-title">${t.title}</div>
+          <div class="card-subtitle">${t.sub}</div>
+          <div class="card-progress-row">
+            <div class="progress-pct">${Math.round(t.progress)}%</div>
+            <div class="progress-label">${isDone ? '总用时 ' + elapsedStr : isActive ? '生成中...' : isFailed ? '生成失败' : '排队等待'}</div>
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" style="width: ${t.progress}%"></div>
+          </div>
+          <div class="card-meta">
+            <div class="card-meta-left">
+              <span class="elapsed-time">&#x23F1; ${elapsedStr}</span>
+            </div>
+            <div class="card-meta-right">
+              <span class="remain-time">&#x23F3; ${remainStr}</span>
+            </div>
+          </div>
+          ${extraHTML}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function updateCard(i) {
+  const t = tasks[i];
+  const card = document.getElementById(`card-${i}`);
+  if (!card) return;
+
+  // Update class
+  card.className = `task-card ${t.status}`;
+
+  // Update progress
+  const pctEl = card.querySelector('.progress-pct');
+  if (pctEl) pctEl.textContent = Math.round(t.progress) + '%';
+
+  const fillEl = card.querySelector('.progress-bar-fill');
+  if (fillEl) fillEl.style.width = t.progress + '%';
+
+  const labelEl = card.querySelector('.progress-label');
+  if (labelEl) {
+    if (t.status === 'done') labelEl.textContent = '总用时 ' + formatTime(t.elapsed);
+    else if (t.status === 'generating') labelEl.textContent = '生成中...';
+    else if (t.status === 'failed') labelEl.textContent = '生成失败';
+    else labelEl.textContent = '排队等待';
+  }
+
+  const elapsedEl = card.querySelector('.elapsed-time');
+  if (elapsedEl) elapsedEl.innerHTML = '&#x23F1; ' + formatTime(t.elapsed);
+
+  const remainEl = card.querySelector('.remain-time');
+  if (remainEl) {
+    if (t.status === 'generating') {
+      remainEl.innerHTML = '&#x23F3; ' + formatTime(Math.max(0, t.estimated - t.elapsed));
+    } else if (t.status === 'done') {
+      remainEl.innerHTML = '&#x23F3; 00:00';
+    } else {
+      remainEl.innerHTML = '&#x23F3; --:--';
+    }
+  }
+
+  // Update badge
+  const badgeParent = card.querySelector('.card-thumb');
+  const oldBadge = badgeParent.querySelector('.status-badge');
+  if (oldBadge) {
+    if (t.status === 'waiting')  oldBadge.outerHTML = '<div class="status-badge waiting">&#x23F3; 等待中</div>';
+    if (t.status === 'generating') oldBadge.outerHTML = '<div class="status-badge generating"><div class="status-dot"></div>生成中</div>';
+    if (t.status === 'done')    oldBadge.outerHTML = '<div class="status-badge done">&#x2714; 已完成</div>';
+    if (t.status === 'failed')  oldBadge.outerHTML = '<div class="status-badge error">&#x2716; 失败</div>';
+  }
+
+  // Show/hide retry
+  const body = card.querySelector('.card-body');
+  let retryBtn = body.querySelector('.retry-btn');
+  let errMsg = body.querySelector('.error-msg');
+
+  if (t.status === 'failed') {
+    if (!errMsg && t.errorMsg) {
+      const em = document.createElement('div');
+      em.className = 'error-msg';
+      em.textContent = t.errorMsg;
+      const meta = body.querySelector('.card-meta');
+      meta.insertAdjacentElement('afterend', em);
+    }
+    if (!retryBtn) {
+      const btn = document.createElement('button');
+      btn.className = 'retry-btn';
+      btn.innerHTML = '&#x21BB; 重试';
+      btn.onclick = () => retryOne(i);
+      body.appendChild(btn);
+    }
+  } else {
+    if (retryBtn) retryBtn.remove();
+    if (errMsg) errMsg.remove();
+  }
+}
+
+// ========== GLOBAL STATS ==========
+function updateStats() {
+  const done = tasks.filter(t => t.status === 'done').length;
+  const active = tasks.filter(t => t.status === 'generating').length;
+  const waiting = tasks.filter(t => t.status === 'waiting').length;
+  const failed = tasks.filter(t => t.status === 'failed').length;
+
+  document.getElementById('countDone').textContent = done;
+  document.getElementById('countActive').textContent = active;
+  document.getElementById('countWaiting').textContent = waiting;
+  document.getElementById('countFailed').textContent = failed;
+
+  const completedIdx = tasks.filter(t => t.status === 'done').length;
+  document.getElementById('taskCounter').textContent = `${completedIdx} / ${TOTAL}`;
+
+  // Global progress = average of all task progresses
+  const totalProgress = tasks.reduce((s, t) => s + t.progress, 0) / TOTAL;
+  document.getElementById('globalPct').textContent = Math.round(totalProgress) + '%';
+  document.getElementById('globalProgressFill').style.width = totalProgress + '%';
+
+  // Controls info
+  const info = document.getElementById('controlsInfo');
+  if (queueRunning && !paused) {
+    const next = tasks.find(t => t.status === 'waiting' || t.status === 'generating');
+    if (next) info.textContent = `正在处理: ${next.title}`;
+    else info.textContent = '全部完成';
+  } else if (paused) {
+    info.textContent = '已暂停';
+  } else if (done === TOTAL) {
+    info.textContent = '全部生成完成!';
+  } else if (failed > 0 && done + failed === TOTAL) {
+    info.textContent = `${failed} 个任务失败`;
+  } else {
+    info.textContent = `${TOTAL} 个视频任务等待生成`;
+  }
+
+  // Show/hide retry failed button
+  document.getElementById('btnRetryFailed').style.display = failed > 0 ? '' : 'none';
+}
+
+// ========== QUEUE LOGIC ==========
+function startQueue() {
+  if (queueRunning) return;
+  queueRunning = true;
+  paused = false;
+
+  document.getElementById('btnStart').disabled = true;
+  document.getElementById('btnStart').style.display = 'none';
+  document.getElementById('btnPause').style.display = '';
+
+  globalStartTime = Date.now();
+  startGlobalTimer();
+  processNext();
+}
+
+function togglePause() {
+  paused = !paused;
+  const btn = document.getElementById('btnPause');
+  if (paused) {
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> 继续`;
+    clearInterval(progressInterval);
+  } else {
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> 暂停`;
+    processNext();
+  }
+  updateStats();
+}
+
+function processNext() {
+  if (paused) return;
+
+  // Find next waiting task
+  const idx = tasks.findIndex(t => t.status === 'waiting');
+  if (idx === -1) {
+    // All done or failed
+    queueRunning = false;
+    clearInterval(progressInterval);
+    document.getElementById('btnPause').style.display = 'none';
+    document.getElementById('btnStart').style.display = '';
+    document.getElementById('btnStart').disabled = false;
+    updateStats();
+    return;
+  }
+
+  currentIdx = idx;
+  tasks[idx].status = 'generating';
+  tasks[idx].progress = 0;
+  tasks[idx].elapsed = 0;
+  updateCard(idx);
+  updateStats();
+
+  // Start progress simulation
+  clearInterval(progressInterval);
+  const taskStart = Date.now();
+  const estimatedMs = tasks[idx].estimated * 1000; // estimated duration in ms
+
+  progressInterval = setInterval(() => {
+    if (paused) return;
+    const t = tasks[idx];
+    if (t.status !== 'generating') {
+      clearInterval(progressInterval);
+      return;
+    }
+
+    const elapsedMs = Date.now() - taskStart;
+    t.elapsed = Math.floor(elapsedMs / 1000);
+
+    // Simulate progress with some randomness
+    // Base progress from time, plus random jitter
+    const baseProgress = (elapsedMs / estimatedMs) * 100;
+    const jitter = (Math.random() - 0.3) * 4;
+    t.progress = Math.min(99, baseProgress + jitter);
+
+    // Random failure chance (~8%) between 30-70%
+    if (t.progress > 30 && t.progress < 70 && Math.random() < 0.003) {
+      t.status = 'failed';
+      t.progress = Math.min(t.progress, 65);
+      t.errorMsg = ['GPU 显存不足', '模型加载超时', 'API 限流，请稍后重试', '服务器 503'][Math.floor(Math.random() * 4)];
+      clearInterval(progressInterval);
+      updateCard(idx);
+      updateStats();
+      // Continue to next
+      setTimeout(processNext, 600);
+      return;
+    }
+
+    // Completion
+    if (elapsedMs >= estimatedMs) {
+      t.status = 'done';
+      t.progress = 100;
+      t.elapsed = Math.floor(elapsedMs / 1000);
+      clearInterval(progressInterval);
+      updateCard(idx);
+      updateStats();
+      // Process next after a brief pause
+      setTimeout(processNext, 400);
+      return;
+    }
+
+    updateCard(idx);
+    updateStats();
+  }, 120);
+}
+
+function retryOne(idx) {
+  tasks[idx].status = 'waiting';
+  tasks[idx].progress = 0;
+  tasks[idx].elapsed = 0;
+  tasks[idx].errorMsg = '';
+  updateCard(idx);
+  updateStats();
+
+  if (!queueRunning) {
+    startQueue();
+  }
+}
+
+function retryAllFailed() {
+  tasks.forEach(t => {
+    if (t.status === 'failed') {
+      t.status = 'waiting';
+      t.progress = 0;
+      t.elapsed = 0;
+      t.errorMsg = '';
+    }
+  });
+  renderCards();
+  updateStats();
+
+  if (!queueRunning) {
+    startQueue();
+  }
+}
+
+function resetAll() {
+  queueRunning = false;
+  paused = false;
+  clearInterval(progressInterval);
+  clearInterval(timerInterval);
+
+  tasks.forEach(t => {
+    t.status = 'waiting';
+    t.progress = 0;
+    t.elapsed = 0;
+    t.errorMsg = '';
+  });
+  globalElapsed = 0;
+
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnStart').style.display = '';
+  document.getElementById('btnPause').style.display = 'none';
+  document.getElementById('btnRetryFailed').style.display = 'none';
+  document.getElementById('globalTimer').textContent = '00:00';
+
+  renderCards();
+  updateStats();
+}
+
+// ========== TIMER ==========
+function startGlobalTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (paused) return;
+    globalElapsed = Math.floor((Date.now() - globalStartTime) / 1000);
+    document.getElementById('globalTimer').textContent = formatTime(globalElapsed);
+  }, 1000);
+}
+
+// ========== UTILS ==========
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+// ========== INIT ==========
+renderCards();
+updateStats();
+</script>
+</body>
+</html>

@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第三章 · 统计分析模型 — 数学建模系列</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --heading: 'Noto Sans SC', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+      --accent: oklch(0.55 0.22 155);
+      --accent-light: oklch(0.72 0.14 155);
+      --accent-glow: oklch(0.60 0.28 155);
+      --blue: oklch(0.55 0.22 250);
+      --blue-light: oklch(0.72 0.14 250);
+      --warm: oklch(0.70 0.18 30);
+      --violet: oklch(0.60 0.20 300);
+      --violet-light: oklch(0.72 0.14 300);
+      --bg-deep: oklch(0.13 0.015 250);
+      --bg-surface: oklch(0.17 0.015 250);
+      --text: oklch(0.95 0.005 250);
+      --text-muted: oklch(0.65 0.02 250);
+      --border: oklch(0.28 0.02 250);
+    }
+    html { scroll-behavior: smooth; overflow-x: hidden; }
+    body { background: var(--bg-deep); color: var(--text); font-family: var(--heading); line-height: 1.6; overflow-x: hidden; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .section {
+      min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
+      padding: 80px 10vw; position: relative; overflow: hidden;
+    }
+    .section-kicker {
+      font-family: var(--mono); font-size: 13px; font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 16px;
+      opacity: 0; transform: translateY(20px);
+    }
+    .section-title {
+      font-size: clamp(40px, 6vw, 80px); font-weight: 900;
+      line-height: 1.1; letter-spacing: -0.02em;
+      margin-bottom: 16px; opacity: 0; transform: translateY(30px);
+    }
+    .section-summary {
+      font-size: clamp(18px, 2vw, 22px); font-weight: 300;
+      line-height: 1.7; color: var(--text-muted);
+      max-width: 640px; margin-bottom: 48px;
+      opacity: 0; transform: translateY(20px);
+    }
+    .animate-in { opacity: 0; transform: translateY(40px); }
+    .animate-in.visible { animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+    @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 40px; position: relative;
+      background: radial-gradient(ellipse at 50% 30%, oklch(0.20 0.06 155) 0%, var(--bg-deep) 70%);
+    }
+    .hero-grid {
+      position: absolute; inset: 0;
+      background-image: linear-gradient(oklch(0.22 0.015 250 / 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, oklch(0.22 0.015 250 / 0.3) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+    }
+    .hero-badge {
+      font-family: var(--mono); font-size: 12px; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--accent);
+      border: 1px solid oklch(0.35 0.08 155); padding: 6px 20px;
+      border-radius: 100px; margin-bottom: 32px;
+      opacity: 0; animation: slideUp 0.6s 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .hero-title {
+      font-size: clamp(48px, 8vw, 100px); font-weight: 900;
+      line-height: 1.05; letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--text) 40%, var(--accent-light) 100%);
+      background-size: 200% 200%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      animation: gradientShift 6s ease infinite, slideUp 0.8s 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      opacity: 0; margin-bottom: 20px;
+    }
+    .hero-sub {
+      font-size: clamp(18px, 2.5vw, 26px); font-weight: 300;
+      color: var(--text-muted); max-width: 600px;
+      opacity: 0; animation: slideUp 0.7s 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .hero-scroll-hint {
+      position: absolute; bottom: 40px; display: flex;
+      flex-direction: column; align-items: center; gap: 8px;
+      color: var(--text-muted); font-size: 12px; font-family: var(--mono);
+      letter-spacing: 0.1em; opacity: 0; animation: fadeIn 1s 1.5s forwards;
+    }
+    .hero-scroll-hint .arrow {
+      width: 20px; height: 20px;
+      border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+      transform: rotate(45deg); animation: float 2s ease-in-out infinite;
+    }
+
+    /* Pipeline */
+    .pipeline { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
+    .pipeline-node {
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px 28px; border-radius: 12px; font-size: 16px; font-weight: 600; white-space: nowrap;
+    }
+    .pipeline-node.data { background: oklch(0.25 0.08 155); color: var(--accent-light); border: 1px solid oklch(0.35 0.08 155); }
+    .pipeline-node.explore { background: oklch(0.25 0.08 250); color: var(--blue-light); border: 1px solid oklch(0.35 0.08 250); }
+    .pipeline-node.model { background: oklch(0.25 0.08 300); color: var(--violet-light); border: 1px solid oklch(0.35 0.08 300); }
+    .pipeline-node.infer { background: oklch(0.25 0.08 30); color: var(--warm); border: 1px solid oklch(0.35 0.08 30); }
+    .pipeline-arrow { font-size: 24px; color: var(--text-muted); padding: 0 8px; opacity: 0.5; }
+
+    /* Cards */
+    .method-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;
+    }
+    .method-card {
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 32px; position: relative; overflow: hidden;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .method-card:hover {
+      border-color: var(--accent); transform: translateY(-6px);
+      box-shadow: 0 20px 60px -20px oklch(0.55 0.22 155 / 0.15);
+    }
+    .method-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      transform: scaleX(0); transform-origin: left; transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .method-card:hover::before { transform: scaleX(1); }
+    .method-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: 18px; font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .method-card:nth-child(1) .method-icon { background: oklch(0.25 0.08 155); color: var(--accent-light); }
+    .method-card:nth-child(2) .method-icon { background: oklch(0.25 0.08 250); color: var(--blue-light); }
+    .method-card:nth-child(3) .method-icon { background: oklch(0.25 0.08 300); color: var(--violet-light); }
+    .method-card:nth-child(4) .method-icon { background: oklch(0.25 0.08 30); color: var(--warm); }
+    .method-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .method-subtitle { font-size: 12px; color: var(--accent); font-family: var(--mono); margin-bottom: 14px; }
+    .method-desc { font-size: 14px; font-weight: 300; line-height: 1.8; color: var(--text-muted); }
+    .method-formula {
+      margin-top: 16px; padding: 14px 18px;
+      background: oklch(0.14 0.015 250); border-radius: 10px;
+      font-family: var(--mono); font-size: 13px; color: var(--accent-light);
+      overflow-x: auto; border-left: 3px solid oklch(0.35 0.08 155);
+      line-height: 1.7;
+    }
+    .method-tags {
+      display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap;
+    }
+    .method-tag {
+      font-family: var(--mono); font-size: 10px; font-weight: 500;
+      padding: 3px 8px; border-radius: 4px;
+      background: oklch(0.20 0.02 250); color: var(--text-muted);
+    }
+
+    /* Steps */
+    .steps-timeline { display: flex; flex-direction: column; gap: 0; max-width: 700px; }
+    .step-item {
+      display: flex; align-items: flex-start; gap: 20px; padding: 20px 0; position: relative;
+    }
+    .step-item::before {
+      content: ''; position: absolute; left: 19px; top: 52px; bottom: -20px;
+      width: 2px; background: linear-gradient(to bottom, var(--accent), transparent);
+    }
+    .step-item:last-child::before { display: none; }
+    .step-dot {
+      width: 40px; height: 40px; min-width: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: 14px; font-weight: 700;
+      background: oklch(0.22 0.04 155); color: var(--accent-light);
+      border: 2px solid oklch(0.35 0.06 155); z-index: 1;
+    }
+    .step-label { font-size: 17px; font-weight: 700; color: var(--text); padding-top: 7px; }
+    .step-note { font-size: 13px; color: var(--text-muted); font-weight: 300; margin-top: 4px; line-height: 1.6; }
+
+    /* Compare table */
+    .compare-table {
+      width: 100%; max-width: 800px; border-collapse: separate; border-spacing: 0;
+      border-radius: 12px; overflow: hidden; border: 1px solid var(--border);
+    }
+    .compare-table th {
+      background: oklch(0.20 0.03 155); color: var(--accent-light);
+      font-family: var(--mono); font-size: 12px; font-weight: 600;
+      padding: 14px 18px; text-align: left; letter-spacing: 0.05em;
+    }
+    .compare-table td {
+      background: var(--bg-surface); color: var(--text-muted);
+      font-size: 13px; padding: 12px 18px; border-top: 1px solid var(--border);
+    }
+    .compare-table tr:hover td { background: oklch(0.19 0.015 250); }
+
+    /* Counters */
+    .counter-row { display: flex; gap: 48px; flex-wrap: wrap; margin: 32px 0; }
+    .counter-item { display: flex; flex-direction: column; }
+    .counter-value {
+      font-family: var(--mono); font-size: clamp(36px, 5vw, 56px);
+      font-weight: 700; color: var(--accent-light); line-height: 1;
+    }
+    .counter-label { font-size: 13px; font-weight: 400; color: var(--text-muted); margin-top: 8px; }
+
+    /* BG */
+    .bg-glow {
+      position: absolute; width: 500px; height: 500px; border-radius: 50%;
+      filter: blur(120px); opacity: 0.15; pointer-events: none;
+    }
+    .bg-glow.green { background: var(--accent); }
+    .bg-glow.blue { background: var(--blue); }
+    .bg-glow.violet { background: var(--violet); }
+
+    .progress-bar {
+      position: fixed; top: 0; left: 0; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      z-index: 9999; transition: width 0.1s linear;
+    }
+    .nav-dots {
+      position: fixed; right: 24px; top: 50%; transform: translateY(-50%);
+      display: flex; flex-direction: column; gap: 12px; z-index: 100;
+    }
+    .nav-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--border);
+      border: none; cursor: pointer; transition: all 0.3s; padding: 0;
+    }
+    .nav-dot.active { background: var(--accent); box-shadow: 0 0 12px oklch(0.55 0.22 155 / 0.5); transform: scale(1.3); }
+
+    .back-link {
+      position: fixed; top: 16px; left: 24px; z-index: 200;
+      font-family: var(--mono); font-size: 12px; color: var(--text-muted);
+      text-decoration: none; display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
+      background: oklch(0.15 0.015 250 / 0.8); backdrop-filter: blur(12px);
+      transition: all 0.2s;
+    }
+    .back-link:hover { color: var(--accent-light); border-color: var(--accent); }
+
+    @media (max-width: 768px) {
+      .section { padding: 60px 24px; }
+      .pipeline { flex-direction: column; }
+      .pipeline-arrow { transform: rotate(90deg); }
+      .nav-dots { display: none; }
+      .counter-row { gap: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<a class="back-link" href="数学建模基础-动画演示.html">← 返回目录</a>
+<div class="progress-bar" id="progressBar"></div>
+<nav class="nav-dots" id="navDots"></nav>
+
+<!-- ========== HERO ========== -->
+<section class="hero" id="s0">
+  <div class="hero-grid"></div>
+  <div class="hero-badge">Chapter 03 · Statistical Analysis</div>
+  <h1 class="hero-title">统计分析模型</h1>
+  <p class="hero-sub">用数据说话，从噪声中提取信号，在不确定性中发现规律</p>
+  <div class="pipeline animate-in" style="margin-top: 48px;">
+    <div class="pipeline-node data">原始数据</div>
+    <span class="pipeline-arrow">→</span>
+    <div class="pipeline-node explore">探索分析</div>
+    <span class="pipeline-arrow">→</span>
+    <div class="pipeline-node model">建模拟合</div>
+    <span class="pipeline-arrow">→</span>
+    <div class="pipeline-node infer">推断预测</div>
+  </div>
+  <div class="hero-scroll-hint"><span>SCROLL</span><div class="arrow"></div></div>
+</section>
+
+<!-- ========== SECTION 1: Regression ========== -->
+<section class="section" id="s1">
+  <div class="bg-glow green" style="top: -200px; right: -200px;"></div>
+  <span class="section-kicker animate-in">01 回归分析</span>
+  <h2 class="section-title animate-in">Regression Analysis</h2>
+  <p class="section-summary animate-in">研究因变量与自变量之间的依赖关系 — 统计建模最基础的工具</p>
+
+  <div class="method-grid">
+    <div class="method-card animate-in">
+      <div class="method-icon">LR</div>
+      <div class="method-name">线性回归</div>
+      <div class="method-subtitle">Linear Regression</div>
+      <div class="method-desc">假设因变量 y 与自变量 x 之间存在线性关系。用最小二乘法估计参数，使残差平方和最小。</div>
+      <div class="method-formula">y = β₀ + β₁x₁ + ... + βₚxₚ + ε<br><br>β̂ = (X<sup>T</sup>X)<sup>-1</sup>X<sup>T</sup>y</div>
+      <div class="method-tags"><span class="method-tag">OLS</span><span class="method-tag">最小二乘</span><span class="method-tag">R²</span></div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">MLR</div>
+      <div class="method-name">多元回归</div>
+      <div class="method-subtitle">Multiple Regression</div>
+      <div class="method-desc">多个自变量的线性回归。需要关注多重共线性（VIF）、变量选择（逐步回归、AIC/BIC）和残差诊断。</div>
+      <div class="method-formula">F 检验: 整体显著性<br>t 检验: 单个系数<br>VIF: 多重共线性诊断</div>
+      <div class="method-tags"><span class="method-tag">VIF</span><span class="method-tag">逐步回归</span><span class="method-tag">AIC</span></div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">Log</div>
+      <div class="method-name">逻辑回归</div>
+      <div class="method-subtitle">Logistic Regression</div>
+      <div class="method-desc">因变量为分类变量（0/1）。用 Sigmoid 函数将线性组合映射到 [0,1] 概率空间。最大似然估计求解。</div>
+      <div class="method-formula">P(y=1|x) = 1 / (1 + e<sup>-z</sup>)<br>z = β₀ + β₁x₁ + ... + βₚxₚ</div>
+      <div class="method-tags"><span class="method-tag">Sigmoid</span><span class="method-tag">MLE</span><span class="method-tag">ROC曲线</span></div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">NLR</div>
+      <div class="method-name">非线性回归</div>
+      <div class="method-subtitle">Nonlinear Regression</div>
+      <div class="method-desc">变量间存在非线性关系：指数、对数、幂函数、S 型曲线等。通过变量变换或迭代优化求解。</div>
+      <div class="method-formula">常见模型:<br>y = ae<sup>bx</sup> (指数)<br>y = a·ln(x) + b (对数)<br>y = ax<sup>b</sup> (幂函数)</div>
+      <div class="method-tags"><span class="method-tag">变量变换</span><span class="method-tag">Gauss-Newton</span><span class="method-tag">Levenberg</span></div>
+    </div>
+  </div>
+
+  <div class="counter-row animate-in" style="margin-top: 48px;">
+    <div class="counter-item"><span class="counter-value" data-target="4">0</span><span class="counter-label">回归类型</span></div>
+    <div class="counter-item"><span class="counter-value" data-target="3">0</span><span class="counter-label">核心检验</span></div>
+    <div class="counter-item"><span class="counter-value" data-target="R²">0</span><span class="counter-label">拟合优度指标</span></div>
+  </div>
+</section>
+
+<!-- ========== SECTION 2: ANOVA ========== -->
+<section class="section" id="s2">
+  <div class="bg-glow blue" style="bottom: -200px; left: -200px;"></div>
+  <span class="section-kicker animate-in">02 方差分析</span>
+  <h2 class="section-title animate-in">ANOVA</h2>
+  <p class="section-summary animate-in">检验多个总体均值是否存在显著差异 — 分解总变异为组间与组内</p>
+
+  <div class="method-grid">
+    <div class="method-card animate-in">
+      <div class="method-icon">1F</div>
+      <div class="method-name">单因素方差分析</div>
+      <div class="method-subtitle">One-Way ANOVA</div>
+      <div class="method-desc">研究一个因素的不同水平对因变量的影响。F = 组间方差 / 组内方差，F 值越大说明因素影响越显著。</div>
+      <div class="method-formula">SS<sub>总</sub> = SS<sub>组间</sub> + SS<sub>组内</sub><br>F = MS<sub>组间</sub> / MS<sub>组内</sub><br>p &lt; α 则拒绝 H₀</div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">2F</div>
+      <div class="method-name">双因素方差分析</div>
+      <div class="method-subtitle">Two-Way ANOVA</div>
+      <div class="method-desc">同时研究两个因素对因变量的影响，还能检测两因素之间的交互效应。分解为：行因素 + 列因素 + 交互 + 误差。</div>
+      <div class="method-formula">SS<sub>总</sub> = SS<sub>A</sub> + SS<sub>B</sub> + SS<sub>AB</sub> + SS<sub>E</sub><br>检验: F<sub>A</sub>, F<sub>B</sub>, F<sub>AB</sub></div>
+    </div>
+  </div>
+
+  <div class="steps-timeline" style="margin-top: 40px;">
+    <div class="step-item animate-in">
+      <div class="step-dot">1</div>
+      <div><div class="step-label">提出假设</div><div class="step-note">H₀: μ₁ = μ₂ = ... = μₖ（各组均值相等）；H₁: 至少一对不等</div></div>
+    </div>
+    <div class="step-item animate-in">
+      <div class="step-dot">2</div>
+      <div><div class="step-label">计算平方和</div><div class="step-note">总变异 = 组间变异 + 组内变异。SS<sub>T</sub> = ΣΣ(xᵢⱼ - x̄)²</div></div>
+    </div>
+    <div class="step-item animate-in">
+      <div class="step-dot">3</div>
+      <div><div class="step-label">构造 F 统计量</div><div class="step-note">F = MS<sub>between</sub> / MS<sub>within</sub>，服从 F(k-1, N-k) 分布</div></div>
+    </div>
+    <div class="step-item animate-in">
+      <div class="step-dot">4</div>
+      <div><div class="step-label">事后多重比较</div><div class="step-note">若 F 显著，用 Tukey HSD、Bonferroni 等方法确定哪些组之间存在差异</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SECTION 3: PCA ========== -->
+<section class="section" id="s3">
+  <div class="bg-glow violet" style="top: -200px; left: 50%;"></div>
+  <span class="section-kicker animate-in">03 主成分分析</span>
+  <h2 class="section-title animate-in">PCA</h2>
+  <p class="section-summary animate-in">降维的利器 — 用少数几个综合变量尽可能多地保留原始信息</p>
+
+  <div class="method-grid">
+    <div class="method-card animate-in">
+      <div class="method-icon">PCA</div>
+      <div class="method-name">核心思想</div>
+      <div class="method-subtitle">Principal Component Analysis</div>
+      <div class="method-desc">在高维数据中找到方差最大的方向作为第一主成分，次大方差正交方向为第二主成分，以此类推。实现降维的同时最大化信息保留。</div>
+      <div class="method-formula">Z = XW<br>W = eigenvectors of X<sup>T</sup>X<br>λ₁ ≥ λ₂ ≥ ... ≥ λₚ</div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">K</div>
+      <div class="method-name">选择主成分个数</div>
+      <div class="method-subtitle">Component Selection</div>
+      <div class="method-desc">通常选择累计贡献率达到 80%~90% 的前 k 个主成分。碎石图（Scree Plot）拐点处也是常用的截断依据。</div>
+      <div class="method-formula">贡献率 = λᵢ / Σλᵢ<br>累计贡献率 = Σ<sub>j=1</sub><sup>k</sup> λⱼ / Σλᵢ<br>通常取 ≥ 85%</div>
+    </div>
+  </div>
+
+  <div class="steps-timeline" style="margin-top: 40px;">
+    <div class="step-item animate-in">
+      <div class="step-dot">1</div>
+      <div><div class="step-label">数据标准化</div><div class="step-note">消除量纲影响：z = (x - μ) / σ，使各变量具有可比性</div></div>
+    </div>
+    <div class="step-item animate-in">
+      <div class="step-dot">2</div>
+      <div><div class="step-label">计算协方差矩阵</div><div class="step-note">C = X<sup>T</sup>X / (n-1)，反映变量间的线性相关程度</div></div>
+    </div>
+    <div class="step-item animate-in">
+      <div class="step-dot">3</div>
+      <div><div class="step-label">特征值分解</div><div class="step-note">对协方差矩阵做特征值分解，得到特征值（方差贡献）和特征向量（主成分方向）</div></div>
+    </div>
+    <div class="step-item animate-in">
+      <div class="step-dot">4</div>
+      <div><div class="step-label">选择并投影</div><div class="step-note">选择前 k 个主成分，将原始数据投影到新的低维空间</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SECTION 4: Clustering ========== -->
+<section class="section" id="s4">
+  <div class="bg-glow green" style="bottom: -200px; right: -300px;"></div>
+  <span class="section-kicker animate-in">04 聚类分析</span>
+  <h2 class="section-title animate-in">Cluster Analysis</h2>
+  <p class="section-summary animate-in">无监督学习的经典方法 — 让数据自己"说出"内在的分组结构</p>
+
+  <div class="method-grid">
+    <div class="method-card animate-in">
+      <div class="method-icon">KM</div>
+      <div class="method-name">K-Means 聚类</div>
+      <div class="method-subtitle">K-Means Clustering</div>
+      <div class="method-desc">最经典的划分方法。指定 K 个簇，迭代执行：分配每个点到最近质心 → 更新质心 → 重复直到收敛。</div>
+      <div class="method-formula">1. 随机初始化 K 个质心<br>2. 分配: C(i) = argmin‖xᵢ-μₖ‖²<br>3. 更新: μₖ = mean(x ∈ Cₖ)<br>4. 重复直到收敛</div>
+      <div class="method-tags"><span class="method-tag">肘部法则</span><span class="method-tag">轮廓系数</span><span class="method-tag">K-Means++</span></div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">HC</div>
+      <div class="method-name">层次聚类</div>
+      <div class="method-subtitle">Hierarchical Clustering</div>
+      <div class="method-desc">不需要预设 K 值。自底向上（凝聚）或自顶向下（分裂），生成树状图（Dendrogram）直观展示聚类过程。</div>
+      <div class="method-formula">凝聚法:<br>1. 每个点为一个簇<br>2. 合并最近的两个簇<br>3. 重复直到达到目标<br>链接: single / complete / average</div>
+      <div class="method-tags"><span class="method-tag">树状图</span><span class="method-tag">距离矩阵</span><span class="method-tag">Ward法</span></div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">DB</div>
+      <div class="method-name">DBSCAN</div>
+      <div class="method-subtitle">Density-Based Clustering</div>
+      <div class="method-desc">基于密度的聚类。能发现任意形状的簇，自动识别噪声点。不需要预设 K 值，但需要设定邻域半径 ε 和最小点数 MinPts。</div>
+      <div class="method-formula">核心点: 邻域内 ≥ MinPts 个点<br>边界点: 在核心点邻域内<br>噪声点: 既非核心也非边界</div>
+      <div class="method-tags"><span class="method-tag">ε邻域</span><span class="method-tag">噪声检测</span><span class="method-tag">任意形状</span></div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">EV</div>
+      <div class="method-name">聚类评估</div>
+      <div class="method-subtitle">Cluster Evaluation</div>
+      <div class="method-desc">如何评价聚类效果？内部指标（轮廓系数、Calinski-Harabasz）不需要标签；外部指标（ARI、NMI）需要真实标签。</div>
+      <div class="method-formula">轮廓系数:<br>s(i) = (b(i)-a(i)) / max(a(i),b(i))<br>a(i): 簇内平均距离<br>b(i): 最近簇平均距离</div>
+      <div class="method-tags"><span class="method-tag">轮廓系数</span><span class="method-tag">CH指数</span><span class="method-tag">DB指数</span></div>
+    </div>
+  </div>
+
+  <!-- Comparison table -->
+  <div style="margin-top: 40px;" class="animate-in">
+    <table class="compare-table">
+      <thead>
+        <tr><th>特性</th><th>K-Means</th><th>层次聚类</th><th>DBSCAN</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>需要预设K</td><td>是</td><td>否</td><td>否</td></tr>
+        <tr><td>簇形状</td><td>球形</td><td>任意</td><td>任意</td></tr>
+        <tr><td>噪声处理</td><td>差</td><td>一般</td><td>优秀</td></tr>
+        <tr><td>大数据集</td><td>快 O(nKt)</td><td>慢 O(n²logn)</td><td>中等 O(nlogn)</td></tr>
+        <tr><td>可解释性</td><td>高</td><td>高(树状图)</td><td>中等</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ========== Footer ========== -->
+<footer style="text-align: center; padding: 60px 24px 40px; border-top: 1px solid var(--border);">
+  <a href="数学建模基础-动画演示.html" style="color: var(--accent-light); font-family: var(--mono); font-size: 13px; text-decoration: none; border: 1px solid var(--border); padding: 8px 20px; border-radius: 8px; transition: all 0.2s;">← 返回课程目录</a>
+  <p style="font-family: var(--mono); font-size: 12px; color: var(--text-muted); letter-spacing: 0.1em; margin-top: 20px;">
+    CHAPTER 03 · STATISTICAL ANALYSIS MODELS — ANIMATED GUIDE
+  </p>
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        const siblings = el.parentElement.querySelectorAll('.animate-in');
+        let delay = 0;
+        siblings.forEach(sib => {
+          if (sib === el) { el.style.animationDelay = delay + 'ms'; el.classList.add('visible'); }
+          if (!sib.classList.contains('visible')) delay += 80;
+        });
+        if (!el.classList.contains('visible')) { el.style.animationDelay = '0ms'; el.classList.add('visible'); }
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.animate-in').forEach(el => observer.observe(el));
+
+  const counterObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.querySelectorAll('[data-target]').forEach(c => {
+          const t = c.dataset.target;
+          if (isNaN(t)) { c.textContent = t; return; }
+          const target = parseInt(t), dur = 1200, start = performance.now();
+          (function tick(now) {
+            const p = Math.min((now - start) / dur, 1);
+            c.textContent = Math.round((1 - Math.pow(1 - p, 3)) * target);
+            if (p < 1) requestAnimationFrame(tick);
+          })(performance.now());
+        });
+        counterObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('.counter-row').forEach(el => counterObserver.observe(el));
+
+  const progressBar = document.getElementById('progressBar');
+  window.addEventListener('scroll', () => {
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    progressBar.style.width = (window.scrollY / h * 100) + '%';
+  });
+
+  const sections = document.querySelectorAll('section[id]');
+  const navDotsContainer = document.getElementById('navDots');
+  const dots = [];
+  sections.forEach((sec, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'nav-dot';
+    dot.title = sec.querySelector('.section-title, .hero-title')?.textContent || '';
+    dot.addEventListener('click', () => sec.scrollIntoView({ behavior: 'smooth' }));
+    navDotsContainer.appendChild(dot);
+    dots.push(dot);
+  });
+  const dotObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const idx = Array.from(sections).indexOf(entry.target);
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+      }
+    });
+  }, { threshold: 0.4 });
+  sections.forEach(sec => dotObserver.observe(sec));
+</script>
+</body>
+</html>

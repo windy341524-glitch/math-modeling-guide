@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数学建模基础 — 动画演示</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ========== Reset & Variables ========== */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --heading: 'Noto Sans SC', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+      --accent: oklch(0.55 0.22 250);
+      --accent-light: oklch(0.72 0.14 250);
+      --accent-glow: oklch(0.60 0.28 250);
+      --warm: oklch(0.70 0.18 30);
+      --success: oklch(0.65 0.20 155);
+      --bg-deep: oklch(0.13 0.015 250);
+      --bg-surface: oklch(0.17 0.015 250);
+      --text: oklch(0.95 0.005 250);
+      --text-muted: oklch(0.65 0.02 250);
+      --border: oklch(0.28 0.02 250);
+    }
+
+    html {
+      scroll-behavior: smooth;
+      overflow-x: hidden;
+    }
+
+    body {
+      background: var(--bg-deep);
+      color: var(--text);
+      font-family: var(--heading);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ========== Scrollbar ========== */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ========== Sections ========== */
+    .section {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 80px 10vw;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .section-kicker {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 16px;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .section-title {
+      font-size: clamp(40px, 6vw, 80px);
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin-bottom: 16px;
+      opacity: 0;
+      transform: translateY(30px);
+    }
+
+    .section-summary {
+      font-size: clamp(18px, 2vw, 22px);
+      font-weight: 300;
+      line-height: 1.7;
+      color: var(--text-muted);
+      max-width: 640px;
+      margin-bottom: 48px;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    /* ========== Animation Base ========== */
+    .animate-in {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+
+    .animate-in.visible {
+      animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes slideUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideRight {
+      from { opacity: 0; transform: translateX(-40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes drawLine {
+      from { stroke-dashoffset: 1000; }
+      to { stroke-dashoffset: 0; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+
+    @keyframes typewriter {
+      from { width: 0; }
+      to { width: 100%; }
+    }
+
+    @keyframes blink {
+      0%, 100% { border-right-color: var(--accent); }
+      50% { border-right-color: transparent; }
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes ripple {
+      0% { transform: scale(1); opacity: 0.4; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+
+    /* ========== Section 0: Hero ========== */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px;
+      position: relative;
+      background: radial-gradient(ellipse at 50% 30%, oklch(0.20 0.06 250) 0%, var(--bg-deep) 70%);
+    }
+
+    .hero-badge {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid oklch(0.35 0.08 250);
+      padding: 6px 20px;
+      border-radius: 100px;
+      margin-bottom: 32px;
+      opacity: 0;
+      animation: slideUp 0.6s 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .hero-title {
+      font-size: clamp(48px, 8vw, 100px);
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--text) 40%, var(--accent-light) 100%);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradientShift 6s ease infinite, slideUp 0.8s 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      opacity: 0;
+      margin-bottom: 20px;
+    }
+
+    .hero-sub {
+      font-size: clamp(18px, 2.5vw, 26px);
+      font-weight: 300;
+      color: var(--text-muted);
+      max-width: 560px;
+      opacity: 0;
+      animation: slideUp 0.7s 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .hero-scroll-hint {
+      position: absolute;
+      bottom: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-family: var(--mono);
+      letter-spacing: 0.1em;
+      opacity: 0;
+      animation: fadeIn 1s 1.5s forwards;
+    }
+
+    .hero-scroll-hint .arrow {
+      width: 20px;
+      height: 20px;
+      border-right: 2px solid var(--accent);
+      border-bottom: 2px solid var(--accent);
+      transform: rotate(45deg);
+      animation: float 2s ease-in-out infinite;
+    }
+
+    /* Background grid */
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(oklch(0.22 0.015 250 / 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, oklch(0.22 0.015 250 / 0.3) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+    }
+
+    /* ========== Pipeline Flow ========== */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .pipeline-node {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 28px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      white-space: nowrap;
+      position: relative;
+    }
+
+    .pipeline-node.problem {
+      background: oklch(0.25 0.08 30);
+      color: var(--warm);
+      border: 1px solid oklch(0.35 0.08 30);
+    }
+    .pipeline-node.model {
+      background: oklch(0.25 0.08 250);
+      color: var(--accent-light);
+      border: 1px solid oklch(0.35 0.08 250);
+    }
+    .pipeline-node.solve {
+      background: oklch(0.25 0.08 155);
+      color: var(--success);
+      border: 1px solid oklch(0.35 0.08 155);
+    }
+    .pipeline-node.result {
+      background: oklch(0.25 0.06 280);
+      color: oklch(0.72 0.14 280);
+      border: 1px solid oklch(0.35 0.06 280);
+    }
+
+    .pipeline-arrow {
+      font-size: 24px;
+      color: var(--text-muted);
+      padding: 0 8px;
+      opacity: 0.5;
+    }
+
+    /* ========== Section 1: Steps ========== */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-top: 8px;
+    }
+
+    .step-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+
+    .step-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+    }
+
+    .step-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .step-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .step-number {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+    }
+
+    .step-name {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .step-desc {
+      font-size: 14px;
+      font-weight: 300;
+      line-height: 1.7;
+      color: var(--text-muted);
+    }
+
+    /* ========== Section 2: Methods ========== */
+    .methods-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .method-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .method-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-6px);
+      box-shadow: 0 20px 60px -20px oklch(0.55 0.22 250 / 0.2);
+    }
+
+    .method-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 16px;
+    }
+
+    .method-card:nth-child(1) .method-icon { background: oklch(0.25 0.08 30); color: var(--warm); }
+    .method-card:nth-child(2) .method-icon { background: oklch(0.25 0.08 250); color: var(--accent-light); }
+    .method-card:nth-child(3) .method-icon { background: oklch(0.25 0.08 155); color: var(--success); }
+    .method-card:nth-child(4) .method-icon { background: oklch(0.25 0.06 280); color: oklch(0.72 0.14 280); }
+    .method-card:nth-child(5) .method-icon { background: oklch(0.25 0.08 60); color: oklch(0.72 0.14 60); }
+
+    .method-name {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .method-subtitle {
+      font-size: 13px;
+      color: var(--accent);
+      font-family: var(--mono);
+      margin-bottom: 12px;
+    }
+
+    .method-desc {
+      font-size: 14px;
+      font-weight: 300;
+      line-height: 1.7;
+      color: var(--text-muted);
+    }
+
+    .method-formula {
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: oklch(0.14 0.015 250);
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--accent-light);
+      overflow-x: auto;
+      border-left: 3px solid oklch(0.35 0.08 250);
+    }
+
+    /* ========== Section 3: Paper Structure ========== */
+    .paper-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-width: 700px;
+    }
+
+    .paper-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 18px 0;
+      position: relative;
+    }
+
+    .paper-item::before {
+      content: '';
+      position: absolute;
+      left: 17px;
+      top: 48px;
+      bottom: -18px;
+      width: 1px;
+      background: var(--border);
+    }
+
+    .paper-item:last-child::before { display: none; }
+
+    .paper-dot {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--bg-surface);
+      border: 2px solid var(--border);
+      color: var(--text-muted);
+      transition: all 0.3s;
+      z-index: 1;
+    }
+
+    .paper-item.highlight .paper-dot {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 20px oklch(0.55 0.22 250 / 0.3);
+    }
+
+    .paper-label {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      padding-top: 6px;
+    }
+
+    .paper-item.highlight .paper-label {
+      color: var(--accent-light);
+    }
+
+    .paper-note {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 300;
+      margin-top: 4px;
+    }
+
+    /* ========== Section 4: Summary ========== */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .summary-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .summary-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+    }
+
+    .summary-emoji {
+      font-size: 36px;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .summary-label {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .summary-desc {
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ========== Animated counter ========== */
+    .counter-row {
+      display: flex;
+      gap: 48px;
+      flex-wrap: wrap;
+      margin: 32px 0;
+    }
+
+    .counter-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .counter-value {
+      font-family: var(--mono);
+      font-size: clamp(36px, 5vw, 56px);
+      font-weight: 700;
+      color: var(--accent-light);
+      line-height: 1;
+    }
+
+    .counter-label {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* ========== Background decorations ========== */
+    .bg-glow {
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.15;
+      pointer-events: none;
+    }
+
+    .bg-glow.blue { background: var(--accent); }
+    .bg-glow.warm { background: var(--warm); }
+
+    /* ========== Progress bar ========== */
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      z-index: 9999;
+      transition: width 0.1s linear;
+    }
+
+    /* ========== Nav dots ========== */
+    .nav-dots {
+      position: fixed;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 100;
+    }
+
+    .nav-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s;
+      padding: 0;
+    }
+
+    .nav-dot.active {
+      background: var(--accent);
+      box-shadow: 0 0 12px oklch(0.55 0.22 250 / 0.5);
+      transform: scale(1.3);
+    }
+
+    /* ========== Section 5: Course Queue ========== */
+    .queue-stats {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    .queue-progress-wrap {
+      flex: 1;
+      min-width: 180px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .queue-progress-bar {
+      flex: 1;
+      height: 8px;
+      background: oklch(0.22 0.015 250);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .queue-progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      width: 25%;
+      transition: width 0.6s ease;
+      position: relative;
+    }
+
+    .queue-progress-fill::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.25), transparent);
+      animation: shimmer 2s ease-in-out infinite;
+    }
+
+    .queue-pct {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-light);
+      min-width: 36px;
+    }
+
+    .queue-chips {
+      display: flex;
+      gap: 6px;
+    }
+
+    .q-chip {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .q-chip .qd { width: 6px; height: 6px; border-radius: 50%; }
+    .q-chip.q-done { background: oklch(0.22 0.05 155); color: var(--success); }
+    .q-chip.q-done .qd { background: var(--success); }
+    .q-chip.q-wait { background: oklch(0.20 0.01 250); color: var(--text-muted); }
+    .q-chip.q-wait .qd { background: var(--text-muted); }
+
+    .queue-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .q-btn {
+      font-family: var(--heading);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.25s;
+    }
+
+    .q-btn:active { transform: scale(0.97); }
+    .q-btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-light)); color: white; }
+    .q-btn-primary:hover { box-shadow: 0 4px 16px oklch(0.55 0.22 250 / 0.3); }
+    .q-btn-primary:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+    .q-btn-ghost { background: var(--bg-surface); color: var(--text-muted); border: 1px solid var(--border); }
+    .q-btn-ghost:hover { border-color: var(--accent); color: var(--text); }
+
+    .queue-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    .q-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: default;
+      position: relative;
+    }
+
+    .q-card:hover { border-color: oklch(0.35 0.02 250); }
+
+    .q-card.q-active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 8px 32px -8px oklch(0.55 0.22 250 / 0.25);
+      transform: translateY(-3px);
+    }
+
+    .q-card.q-completed {
+      border-color: oklch(0.35 0.06 155);
+      cursor: pointer;
+    }
+
+    .q-card.q-completed:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px -8px oklch(0.65 0.20 155 / 0.2);
+    }
+
+    .q-card.q-failed {
+      border-color: oklch(0.40 0.08 25);
+    }
+
+    .q-card-top {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      gap: 14px;
+      background: oklch(0.15 0.015 250);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .q-card.q-completed .q-card-top { background: oklch(0.16 0.04 155); }
+    .q-card.q-active .q-card-top { background: oklch(0.16 0.04 250); }
+    .q-card.q-failed .q-card-top { background: oklch(0.16 0.04 25); }
+
+    .q-card-idx {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 700;
+      min-width: 28px;
+      color: var(--text-dim);
+    }
+
+    .q-card.q-completed .q-card-idx { color: var(--success); }
+    .q-card.q-active .q-card-idx { color: var(--accent-light); }
+    .q-card.q-failed .q-card-idx { color: var(--danger); }
+
+    .q-card-icon {
+      font-size: 28px;
+      opacity: 0.7;
+    }
+
+    .q-card.q-active .q-card-icon { opacity: 1; animation: float 3s ease-in-out infinite; }
+
+    .q-card-badge {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 12px;
+    }
+
+    .q-card-badge.b-wait { background: oklch(0.22 0.01 250); color: var(--text-dim); }
+    .q-card-badge.b-gen { background: oklch(0.25 0.08 250); color: var(--accent-light); display: flex; align-items: center; gap: 4px; }
+    .q-card-badge.b-gen .bd { width: 5px; height: 5px; border-radius: 50%; background: var(--accent-light); animation: pulse 1s ease infinite; }
+    .q-card-badge.b-done { background: oklch(0.22 0.06 155); color: var(--success); }
+    .q-card-badge.b-err { background: oklch(0.25 0.08 25); color: var(--danger); }
+
+    .q-card-body {
+      padding: 14px 18px 16px;
+    }
+
+    .q-card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .q-card-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .q-card-pct {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .q-card.q-active .q-card-pct { color: var(--accent-light); }
+    .q-card.q-completed .q-card-pct { color: var(--success); }
+    .q-card.q-failed .q-card-pct { color: var(--danger); }
+
+    .q-pct-sub {
+      font-size: 10px;
+      font-weight: 400;
+      color: var(--text-dim);
+    }
+
+    .q-bar {
+      height: 5px;
+      background: oklch(0.22 0.015 250);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .q-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.3s ease, background 0.3s;
+      background: var(--text-dim);
+      position: relative;
+    }
+
+    .q-card.q-active .q-bar-fill {
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+    }
+    .q-card.q-active .q-bar-fill::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.3), transparent);
+      animation: shimmer 1.5s ease-in-out infinite;
+    }
+    .q-card.q-completed .q-bar-fill { background: var(--success); }
+    .q-card.q-failed .q-bar-fill { background: var(--danger); }
+
+    .q-card-meta {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .q-card.q-active .q-meta-elapsed { color: var(--accent-light); }
+
+    .q-retry {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: 8px;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--danger);
+      background: oklch(0.22 0.06 25);
+      border: 1px solid oklch(0.35 0.08 25);
+      padding: 4px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .q-retry:hover { background: oklch(0.28 0.08 25); }
+
+    /* Responsive ========== */
+    @media (max-width: 768px) {
+      .section { padding: 60px 24px; }
+      .pipeline { flex-direction: column; }
+      .pipeline-arrow { transform: rotate(90deg); }
+      .nav-dots { display: none; }
+      .counter-row { gap: 24px; }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .queue-grid { grid-template-columns: 1fr; }
+      .queue-chips { display: none; }
+    }
+
+    @media (max-width: 480px) {
+      .summary-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<nav class="nav-dots" id="navDots"></nav>
+
+<!-- ========== HERO ========== -->
+<section class="hero" id="s0">
+  <div class="hero-grid"></div>
+  <div class="hero-badge">Mathematical Modeling Fundamentals</div>
+  <h1 class="hero-title">数学建模基础</h1>
+  <p class="hero-sub">将现实问题翻译为数学语言，在抽象与现实之间架起桥梁</p>
+
+  <div class="pipeline animate-in" style="margin-top: 48px;">
+    <div class="pipeline-node problem">现实问题</div>
+    <span class="pipeline-arrow">→</span>
+    <div class="pipeline-node model">数学模型</div>
+    <span class="pipeline-arrow">→</span>
+    <div class="pipeline-node solve">求解分析</div>
+    <span class="pipeline-arrow">→</span>
+    <div class="pipeline-node result">回归现实</div>
+  </div>
+
+  <div class="hero-scroll-hint">
+    <span>SCROLL</span>
+    <div class="arrow"></div>
+  </div>
+</section>
+
+<!-- ========== SECTION 1: Steps ========== -->
+<section class="section" id="s1">
+  <div class="bg-glow blue" style="top: -200px; right: -200px;"></div>
+  <span class="section-kicker animate-in">01 基本步骤</span>
+  <h2 class="section-title animate-in">六步建模法</h2>
+  <p class="section-summary animate-in">从问题分析到模型应用，每一步都不可或缺</p>
+
+  <div class="steps-grid">
+    <div class="step-card animate-in">
+      <div class="step-number">STEP 01</div>
+      <div class="step-name">问题分析</div>
+      <div class="step-desc">明确背景、目标和约束条件。回答：要解决什么？已知什么？期望什么？</div>
+    </div>
+    <div class="step-card animate-in">
+      <div class="step-number">STEP 02</div>
+      <div class="step-name">合理假设</div>
+      <div class="step-desc">忽略次要因素，简化变量关系，明确适用范围。假设决定模型质量。</div>
+    </div>
+    <div class="step-card animate-in">
+      <div class="step-number">STEP 03</div>
+      <div class="step-name">建立模型</div>
+      <div class="step-desc">选择合适的数学工具：优化、统计、微分方程、图论、概率……</div>
+    </div>
+    <div class="step-card animate-in">
+      <div class="step-number">STEP 04</div>
+      <div class="step-name">模型求解</div>
+      <div class="step-desc">解析法精确求解、数值法迭代逼近、仿真法统计推断。</div>
+    </div>
+    <div class="step-card animate-in">
+      <div class="step-number">STEP 05</div>
+      <div class="step-name">验证检验</div>
+      <div class="step-desc">历史数据验证、灵敏度分析、误差评估、合理性检验。</div>
+    </div>
+    <div class="step-card animate-in">
+      <div class="step-number">STEP 06</div>
+      <div class="step-name">改进应用</div>
+      <div class="step-desc">根据验证结果迭代优化，将模型应用于实际问题的解决。</div>
+    </div>
+  </div>
+
+  <div class="counter-row animate-in" style="margin-top: 48px;">
+    <div class="counter-item">
+      <span class="counter-value" data-target="6">0</span>
+      <span class="counter-label">核心步骤</span>
+    </div>
+    <div class="counter-item">
+      <span class="counter-value" data-target="7">0</span>
+      <span class="counter-label">常见模型类型</span>
+    </div>
+    <div class="counter-item">
+      <span class="counter-value" data-target="3">0</span>
+      <span class="counter-label">求解方法类别</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SECTION 2: Methods ========== -->
+<section class="section" id="s2">
+  <div class="bg-glow warm" style="bottom: -200px; left: -200px;"></div>
+  <span class="section-kicker animate-in">02 核心方法</span>
+  <h2 class="section-title animate-in">五大常用模型</h2>
+  <p class="section-summary animate-in">掌握这些方法，覆盖 80% 的竞赛题型</p>
+
+  <div class="methods-grid">
+    <div class="method-card animate-in">
+      <div class="method-icon">A</div>
+      <div class="method-name">层次分析法</div>
+      <div class="method-subtitle">AHP · 评价模型</div>
+      <div class="method-desc">定性与定量结合的多准则决策方法。将复杂问题分解为层次结构，通过两两比较确定权重。</div>
+      <div class="method-formula">目标层 → 准则层 → 方案层</div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">LP</div>
+      <div class="method-name">线性规划</div>
+      <div class="method-subtitle">Linear Programming · 优化</div>
+      <div class="method-desc">在线性约束条件下，求线性目标函数的最优值。生产计划、运输调度、资源分配的基础工具。</div>
+      <div class="method-formula">min c^T x  s.t. Ax ≤ b, x ≥ 0</div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">R²</div>
+      <div class="method-name">回归分析</div>
+      <div class="method-subtitle">Regression · 统计模型</div>
+      <div class="method-desc">研究因变量与自变量之间的统计关系。核心任务：参数估计、假设检验、拟合优度评价。</div>
+      <div class="method-formula">y = β₀ + β₁x₁ + β₂x₂ + ... + ε</div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">∂</div>
+      <div class="method-name">微分方程</div>
+      <div class="method-subtitle">ODE/PDE · 动态系统</div>
+      <div class="method-desc">描述动态过程：人口增长、传染病传播、热传导。从指数增长到 Logistic 模型。</div>
+      <div class="method-formula">dN/dt = rN(1 - N/K)</div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">GM</div>
+      <div class="method-name">灰色预测</div>
+      <div class="method-subtitle">GM(1,1) · 预测模型</div>
+      <div class="method-desc">适用于数据量少、信息不完整的情况。通过累加生成操作建立一阶微分方程进行预测。</div>
+      <div class="method-formula">适用: 4~20 个数据, 非负, 短期</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SECTION 3: Paper Structure ========== -->
+<section class="section" id="s3">
+  <div class="bg-glow blue" style="top: 50%; right: -300px;"></div>
+  <span class="section-kicker animate-in">03 论文结构</span>
+  <h2 class="section-title animate-in">标准论文框架</h2>
+  <p class="section-summary animate-in">评委第一眼看摘要 — 这是整篇论文最重要的部分</p>
+
+  <div class="paper-flow">
+    <div class="paper-item highlight animate-in">
+      <div class="paper-dot">1</div>
+      <div>
+        <div class="paper-label">摘 要</div>
+        <div class="paper-note">问题概述 + 方法选择 + 主要结果 — 最关键</div>
+      </div>
+    </div>
+    <div class="paper-item animate-in">
+      <div class="paper-dot">2</div>
+      <div>
+        <div class="paper-label">问题重述</div>
+        <div class="paper-note">用自己的语言重新表述问题</div>
+      </div>
+    </div>
+    <div class="paper-item animate-in">
+      <div class="paper-dot">3</div>
+      <div>
+        <div class="paper-label">问题分析</div>
+        <div class="paper-note">初步分析和解题思路</div>
+      </div>
+    </div>
+    <div class="paper-item animate-in">
+      <div class="paper-dot">4</div>
+      <div>
+        <div class="paper-label">模型假设</div>
+        <div class="paper-note">列出所有假设并说明合理性</div>
+      </div>
+    </div>
+    <div class="paper-item animate-in">
+      <div class="paper-dot">5</div>
+      <div>
+        <div class="paper-label">符号说明</div>
+        <div class="paper-note">定义论文中使用的符号</div>
+      </div>
+    </div>
+    <div class="paper-item highlight animate-in">
+      <div class="paper-dot">6</div>
+      <div>
+        <div class="paper-label">模型建立与求解</div>
+        <div class="paper-note">核心部分 — 详细描述模型和求解过程</div>
+      </div>
+    </div>
+    <div class="paper-item animate-in">
+      <div class="paper-dot">7</div>
+      <div>
+        <div class="paper-label">验证与灵敏度分析</div>
+        <div class="paper-note">检验模型的可靠性</div>
+      </div>
+    </div>
+    <div class="paper-item animate-in">
+      <div class="paper-dot">8</div>
+      <div>
+        <div class="paper-label">评价与改进</div>
+        <div class="paper-note">讨论优缺点和改进方向</div>
+      </div>
+    </div>
+    <div class="paper-item animate-in">
+      <div class="paper-dot">9</div>
+      <div>
+        <div class="paper-label">参考文献 & 附录</div>
+        <div class="paper-note">引用文献 + 代码和详细数据</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SECTION 4: Tips ========== -->
+<section class="section" id="s4">
+  <div class="bg-glow warm" style="top: -200px; left: 50%;"></div>
+  <span class="section-kicker animate-in">04 学习建议</span>
+  <h2 class="section-title animate-in">成长路径</h2>
+  <p class="section-summary animate-in">多学、多练、多思考 — 在实践中培养建模直觉</p>
+
+  <div class="summary-grid">
+    <div class="summary-card animate-in">
+      <span class="summary-emoji">📐</span>
+      <div class="summary-label">打好基础</div>
+      <div class="summary-desc">高等数学、线性代数、概率论与数理统计</div>
+    </div>
+    <div class="summary-card animate-in">
+      <span class="summary-emoji">🧰</span>
+      <div class="summary-label">掌握方法</div>
+      <div class="summary-desc">优化、统计、评价、预测、图论五大类模型</div>
+    </div>
+    <div class="summary-card animate-in">
+      <span class="summary-emoji">💻</span>
+      <div class="summary-label">编程实践</div>
+      <div class="summary-desc">MATLAB / Python 数据处理与可视化</div>
+    </div>
+    <div class="summary-card animate-in">
+      <span class="summary-emoji">🏆</span>
+      <div class="summary-label">实战训练</div>
+      <div class="summary-desc">CUMCM 国赛 / MCM 美赛历年真题</div>
+    </div>
+    <div class="summary-card animate-in">
+      <span class="summary-emoji">👥</span>
+      <div class="summary-label">团队协作</div>
+      <div class="summary-desc">三人分工：建模、编程、写作</div>
+    </div>
+    <div class="summary-card animate-in">
+      <span class="summary-emoji">📖</span>
+      <div class="summary-label">研读优秀论文</div>
+      <div class="summary-desc">学习获奖论文的思路和表达方式</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SECTION 5: Course Queue ========== -->
+<section class="section" id="s5" style="min-height: auto; padding-top: 60px; padding-bottom: 80px;">
+  <div class="bg-glow blue" style="bottom: -200px; left: 30%;"></div>
+  <span class="section-kicker animate-in">05 课程生成</span>
+  <h2 class="section-title animate-in" style="font-size: clamp(32px, 5vw, 56px);">全部章节</h2>
+  <p class="section-summary animate-in">12 节数学建模系列课程 — 点击已完成章节进入学习</p>
+
+  <div class="queue-stats animate-in">
+    <div class="queue-progress-wrap">
+      <div class="queue-progress-bar">
+        <div class="queue-progress-fill" id="qGlobalFill"></div>
+      </div>
+      <div class="queue-pct" id="qGlobalPct">0%</div>
+    </div>
+    <div class="queue-chips">
+      <div class="q-chip q-done"><div class="qd"></div><span id="qCntDone">0</span> 完成</div>
+      <div class="q-chip q-wait"><div class="qd"></div><span id="qCntWait">12</span> 待生成</div>
+    </div>
+  </div>
+
+  <div class="queue-controls animate-in">
+    <button class="q-btn q-btn-primary" id="qBtnStart" onclick="qStart()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+      开始生成
+    </button>
+    <button class="q-btn q-btn-ghost" id="qBtnPause" onclick="qTogglePause()" style="display:none;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      暂停
+    </button>
+    <button class="q-btn q-btn-ghost" id="qBtnReset" onclick="qResetAll()">重置</button>
+  </div>
+
+  <div class="queue-grid animate-in" id="qGrid"></div>
+</section>
+
+<!-- ========== Footer ========== -->
+<footer style="text-align: center; padding: 60px 24px 40px; border-top: 1px solid var(--border);">
+  <p style="font-family: var(--mono); font-size: 12px; color: var(--text-muted); letter-spacing: 0.1em;">
+    MATHEMATICAL MODELING FUNDAMENTALS — ANIMATED GUIDE
+  </p>
+</footer>
+
+<!-- ========== Audio Player ========== -->
+<div id="audioCtrl" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;align-items:center;gap:10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:40px;padding:8px 16px;backdrop-filter:blur(12px);box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+  <button id="btnPlay" onclick="togglePlay()" style="background:none;border:none;color:var(--text);cursor:pointer;font-size:18px;line-height:1;padding:4px;">&#9654;</button>
+  <span id="audioLabel" style="font-family:var(--mono);font-size:11px;color:var(--text-muted);min-width:80px;white-space:nowrap;">点击播放</span>
+  <div style="width:80px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;">
+    <div id="audioProgress" style="width:0%;height:100%;background:var(--accent);transition:width 0.3s;"></div>
+  </div>
+  <button id="btnMute" onclick="toggleMute()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;line-height:1;padding:4px;">&#128264;</button>
+</div>
+<script>
+(function(){
+  const CHAPTER_MAP = [
+    { id:'s0', file:'chapter1.wav', label:'什么是数学建模' },
+    { id:'s1', file:'chapter2.wav', label:'六步建模法' },
+    { id:'s2', file:'chapter3.wav', label:'工具箱' },
+    { id:'s3', file:'chapter4.wav', label:'论文写作' },
+    { id:'s4', file:'chapter5.wav', label:'学习建议' },
+    { id:'s5', file:'chapter6.wav', label:'总结与预告' },
+  ];
+
+  const audio = new Audio();
+  let currentChapter = -1;
+  let isPlaying = false;
+  let isMuted = false;
+  let userStarted = false;
+
+  const btnPlay = document.getElementById('btnPlay');
+  const btnMute = document.getElementById('btnMute');
+  const label = document.getElementById('audioLabel');
+  const progress = document.getElementById('audioProgress');
+
+  audio.addEventListener('ended', () => {
+    isPlaying = false;
+    btnPlay.innerHTML = '&#9654;';
+  });
+
+  audio.addEventListener('timeupdate', () => {
+    if (audio.duration) {
+      progress.style.width = (audio.currentTime / audio.duration * 100) + '%';
+    }
+  });
+
+  window.togglePlay = function() {
+    if (!userStarted) {
+      userStarted = true;
+      playChapter(0);
+      return;
+    }
+    if (isPlaying) {
+      audio.pause();
+      isPlaying = false;
+      btnPlay.innerHTML = '&#9654;';
+    } else {
+      audio.play();
+      isPlaying = true;
+      btnPlay.innerHTML = '&#10074;&#10074;';
+    }
+  };
+
+  window.toggleMute = function() {
+    isMuted = !isMuted;
+    audio.muted = isMuted;
+    btnMute.innerHTML = isMuted ? '&#128263;' : '&#128264;';
+  };
+
+  function playChapter(idx) {
+    if (idx < 0 || idx >= CHAPTER_MAP.length) return;
+    currentChapter = idx;
+    audio.src = CHAPTER_MAP[idx].file;
+    audio.play().then(() => {
+      isPlaying = true;
+      btnPlay.innerHTML = '&#10074;&#10074;';
+      label.textContent = CHAPTER_MAP[idx].label;
+    }).catch(() => {});
+  }
+
+  // Observe sections — auto-switch chapter on scroll
+  const sectionObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && userStarted) {
+        const idx = CHAPTER_MAP.findIndex(c => c.id === entry.target.id);
+        if (idx !== -1 && idx !== currentChapter) {
+          playChapter(idx);
+        }
+      }
+    });
+  }, { threshold: 0.5 });
+
+  CHAPTER_MAP.forEach(c => {
+    const el = document.getElementById(c.id);
+    if (el) sectionObserver.observe(el);
+  });
+})();
+</script>
+
+<script>
+  // ========== Scroll-driven animations ==========
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        // Stagger children animations
+        const siblings = el.parentElement.querySelectorAll('.animate-in');
+        let delay = 0;
+        siblings.forEach(sib => {
+          if (sib === el) {
+            el.style.animationDelay = delay + 'ms';
+            el.classList.add('visible');
+          }
+          if (!sib.classList.contains('visible')) delay += 80;
+        });
+        // Also trigger immediately if parent hasn't started
+        if (!el.classList.contains('visible')) {
+          el.style.animationDelay = '0ms';
+          el.classList.add('visible');
+        }
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.animate-in').forEach(el => observer.observe(el));
+
+  // ========== Counter animation ==========
+  const counterObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const counters = entry.target.querySelectorAll('[data-target]');
+        counters.forEach(counter => {
+          const target = parseInt(counter.dataset.target);
+          const duration = 1200;
+          const start = performance.now();
+          function tick(now) {
+            const progress = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            counter.textContent = Math.round(eased * target);
+            if (progress < 1) requestAnimationFrame(tick);
+          }
+          requestAnimationFrame(tick);
+        });
+        counterObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.5 });
+
+  document.querySelectorAll('.counter-row').forEach(el => counterObserver.observe(el));
+
+  // ========== Progress bar ==========
+  const progressBar = document.getElementById('progressBar');
+  window.addEventListener('scroll', () => {
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    progressBar.style.width = (window.scrollY / h * 100) + '%';
+  });
+
+  // ========== Nav dots ==========
+  const sections = document.querySelectorAll('section[id]');
+  const navDotsContainer = document.getElementById('navDots');
+  const dots = [];
+  sections.forEach((sec, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'nav-dot';
+    dot.title = sec.querySelector('.section-title, .hero-title')?.textContent || `Section ${i}`;
+    dot.addEventListener('click', () => sec.scrollIntoView({ behavior: 'smooth' }));
+    navDotsContainer.appendChild(dot);
+    dots.push(dot);
+  });
+
+  const dotObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const idx = Array.from(sections).indexOf(entry.target);
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+      }
+    });
+  }, { threshold: 0.4 });
+
+  sections.forEach(sec => dotObserver.observe(sec));
+
+  // ========== Course Queue ==========
+  const CHAPTERS = [
+    { title: '数学建模概述',     sub: 'Introduction',          icon: '\u{1F4D0}', href: '数学建模基础-动画演示.html' },
+    { title: '六步建模法',       sub: 'Six-Step Method',       icon: '\u{1F522}', href: '数学建模基础-动画演示.html' },
+    { title: '层次分析法 AHP',   sub: 'Analytic Hierarchy',    icon: '\u{1F3AF}', href: '数学建模基础-动画演示.html' },
+    { title: '线性规划',         sub: 'Linear Programming',    icon: '\u{1F4CA}', href: '第二章-优化模型.html' },
+    { title: '回归分析',         sub: 'Regression Analysis',   icon: '\u{1F4C8}', href: '第三章-统计分析模型.html' },
+    { title: '微分方程模型',     sub: 'Differential Equations',icon: '∂',    href: null },
+    { title: '灰色预测 GM(1,1)', sub: 'Grey Prediction',       icon: '\u{1F52E}', href: null },
+    { title: '图论与网络流',     sub: 'Graph Theory',          icon: '\u{1F578}', href: null },
+    { title: '蒙特卡洛模拟',     sub: 'Monte Carlo',           icon: '\u{1F3B2}', href: null },
+    { title: '评价与决策模型',   sub: 'Evaluation Models',     icon: '⚖',    href: null },
+    { title: '论文写作规范',     sub: 'Paper Writing',         icon: '✍',    href: null },
+    { title: '竞赛实战演练',     sub: 'Contest Practice',      icon: '\u{1F3C6}', href: null },
+  ];
+
+  const qTasks = CHAPTERS.map((ch, i) => ({
+    ...ch, idx: i,
+    status: i < 3 ? 'done' : 'waiting', // chapters 1-3 already built
+    progress: i < 3 ? 100 : 0,
+    elapsed: i < 3 ? Math.floor(8 + Math.random() * 12) : 0,
+    estimated: 8 + Math.floor(Math.random() * 14),
+  }));
+
+  let qRunning = false, qPaused = false, qTimer = null, qProgInt = null;
+
+  function fmtQ(s) {
+    return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+  }
+
+  function qRender() {
+    const grid = document.getElementById('qGrid');
+    grid.innerHTML = qTasks.map((t, i) => {
+      const cls = t.status === 'done' ? 'q-completed' : t.status === 'generating' ? 'q-active' : t.status === 'failed' ? 'q-failed' : '';
+      const clickable = t.status === 'done' && t.href;
+      let badge = '';
+      if (t.status === 'waiting')   badge = '<div class="q-card-badge b-wait">等待中</div>';
+      if (t.status === 'generating') badge = '<div class="q-card-badge b-gen"><div class="bd"></div>生成中</div>';
+      if (t.status === 'done')      badge = '<div class="q-card-badge b-done">✔ 已完成</div>';
+      if (t.status === 'failed')    badge = '<div class="q-card-badge b-err">✖ 失败</div>';
+
+      const pctSub = t.status === 'done' ? '总用时 ' + fmtQ(t.elapsed) : t.status === 'generating' ? '生成中...' : t.status === 'failed' ? '生成失败' : '排队等待';
+      const elapsed = t.status === 'done' || t.status === 'generating' ? fmtQ(t.elapsed) : '--:--';
+      const remain = t.status === 'generating' ? fmtQ(Math.max(0, t.estimated - t.elapsed)) : '--:--';
+
+      let retry = '';
+      if (t.status === 'failed') {
+        retry = `<button class="q-retry" onclick="event.stopPropagation();qRetryOne(${i})">↻ 重试</button>`;
+      }
+
+      return `<div class="q-card ${cls}" id="qc-${i}" ${clickable ? `onclick="window.location.href='${t.href}'"` : ''}>
+        <div class="q-card-top">
+          <div class="q-card-idx">${String(i + 1).padStart(2, '0')}</div>
+          <div class="q-card-icon">${t.icon}</div>
+          ${badge}
+        </div>
+        <div class="q-card-body">
+          <div class="q-card-title">${t.title}</div>
+          <div class="q-card-sub">${t.sub}</div>
+          <div class="q-card-pct">${Math.round(t.progress)}%<span class="q-pct-sub">${pctSub}</span></div>
+          <div class="q-bar"><div class="q-bar-fill" style="width:${t.progress}%"></div></div>
+          <div class="q-card-meta">
+            <span class="q-meta-elapsed">⏱ ${elapsed}</span>
+            <span>⏳ ${remain}</span>
+          </div>
+          ${retry}
+        </div>
+      </div>`;
+    }).join('');
+    qUpdateStats();
+  }
+
+  function qUpdateCard(i) {
+    const t = qTasks[i];
+    const card = document.getElementById('qc-' + i);
+    if (!card) return;
+    card.className = 'q-card ' + (t.status === 'done' ? 'q-completed' : t.status === 'generating' ? 'q-active' : t.status === 'failed' ? 'q-failed' : '');
+    if (t.status === 'done' && t.href) card.onclick = () => window.location.href = t.href;
+
+    const pct = card.querySelector('.q-card-pct');
+    if (pct) {
+      const sub = t.status === 'done' ? '总用时 ' + fmtQ(t.elapsed) : t.status === 'generating' ? '生成中...' : t.status === 'failed' ? '生成失败' : '排队等待';
+      pct.innerHTML = Math.round(t.progress) + '%<span class="q-pct-sub">' + sub + '</span>';
+    }
+    const bar = card.querySelector('.q-bar-fill');
+    if (bar) bar.style.width = t.progress + '%';
+
+    const meta = card.querySelector('.q-card-meta');
+    if (meta) {
+      const el = t.status === 'done' || t.status === 'generating' ? fmtQ(t.elapsed) : '--:--';
+      const rm = t.status === 'generating' ? fmtQ(Math.max(0, t.estimated - t.elapsed)) : '--:--';
+      meta.innerHTML = `<span class="q-meta-elapsed">⏱ ${el}</span><span>⏳ ${rm}</span>`;
+    }
+
+    // Badge
+    const top = card.querySelector('.q-card-top');
+    const oldBadge = top.querySelector('.q-card-badge');
+    if (oldBadge) {
+      if (t.status === 'waiting')   oldBadge.outerHTML = '<div class="q-card-badge b-wait">等待中</div>';
+      if (t.status === 'generating') oldBadge.outerHTML = '<div class="q-card-badge b-gen"><div class="bd"></div>生成中</div>';
+      if (t.status === 'done')      oldBadge.outerHTML = '<div class="q-card-badge b-done">✔ 已完成</div>';
+      if (t.status === 'failed')    oldBadge.outerHTML = '<div class="q-card-badge b-err">✖ 失败</div>';
+    }
+
+    // Retry
+    let retry = card.querySelector('.q-retry');
+    if (t.status === 'failed' && !retry) {
+      const body = card.querySelector('.q-card-body');
+      const btn = document.createElement('button');
+      btn.className = 'q-retry';
+      btn.innerHTML = '↻ 重试';
+      btn.onclick = (e) => { e.stopPropagation(); qRetryOne(i); };
+      body.appendChild(btn);
+    } else if (t.status !== 'failed' && retry) {
+      retry.remove();
+    }
+  }
+
+  function qUpdateStats() {
+    const done = qTasks.filter(t => t.status === 'done').length;
+    const wait = qTasks.filter(t => t.status === 'waiting' || t.status === 'failed').length;
+    document.getElementById('qCntDone').textContent = done;
+    document.getElementById('qCntWait').textContent = wait;
+    const totalPct = qTasks.reduce((s, t) => s + t.progress, 0) / qTasks.length;
+    document.getElementById('qGlobalPct').textContent = Math.round(totalPct) + '%';
+    document.getElementById('qGlobalFill').style.width = totalPct + '%';
+  }
+
+  function qStart() {
+    if (qRunning) return;
+    qRunning = true; qPaused = false;
+    document.getElementById('qBtnStart').disabled = true;
+    document.getElementById('qBtnStart').style.display = 'none';
+    document.getElementById('qBtnPause').style.display = '';
+    qProcessNext();
+  }
+
+  function qTogglePause() {
+    qPaused = !qPaused;
+    const btn = document.getElementById('qBtnPause');
+    if (qPaused) {
+      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> 继续';
+      clearInterval(qProgInt);
+    } else {
+      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> 暂停';
+      qProcessNext();
+    }
+  }
+
+  function qProcessNext() {
+    if (qPaused) return;
+    const idx = qTasks.findIndex(t => t.status === 'waiting');
+    if (idx === -1) {
+      qRunning = false;
+      clearInterval(qProgInt);
+      document.getElementById('qBtnPause').style.display = 'none';
+      document.getElementById('qBtnStart').style.display = '';
+      document.getElementById('qBtnStart').disabled = false;
+      qUpdateStats();
+      return;
+    }
+
+    qTasks[idx].status = 'generating';
+    qTasks[idx].progress = 0;
+    qTasks[idx].elapsed = 0;
+    qUpdateCard(idx);
+    qUpdateStats();
+
+    clearInterval(qProgInt);
+    const t0 = Date.now();
+    const estMs = qTasks[idx].estimated * 1000;
+
+    qProgInt = setInterval(() => {
+      if (qPaused) return;
+      const t = qTasks[idx];
+      if (t.status !== 'generating') { clearInterval(qProgInt); return; }
+      const ms = Date.now() - t0;
+      t.elapsed = Math.floor(ms / 1000);
+      t.progress = Math.min(99, (ms / estMs) * 100 + (Math.random() - 0.3) * 4);
+
+      if (t.progress > 30 && t.progress < 70 && Math.random() < 0.002) {
+        t.status = 'failed'; t.progress = Math.min(t.progress, 60);
+        clearInterval(qProgInt); qUpdateCard(idx); qUpdateStats();
+        setTimeout(qProcessNext, 500);
+        return;
+      }
+
+      if (ms >= estMs) {
+        t.status = 'done'; t.progress = 100;
+        clearInterval(qProgInt); qUpdateCard(idx); qUpdateStats();
+        setTimeout(qProcessNext, 350);
+        return;
+      }
+
+      qUpdateCard(idx); qUpdateStats();
+    }, 130);
+  }
+
+  function qRetryOne(i) {
+    qTasks[i].status = 'waiting';
+    qTasks[i].progress = 0;
+    qTasks[i].elapsed = 0;
+    qUpdateCard(i); qUpdateStats();
+    if (!qRunning) qStart();
+  }
+
+  function qResetAll() {
+    qRunning = false; qPaused = false;
+    clearInterval(qProgInt);
+    qTasks.forEach((t, i) => {
+      if (i >= 3) { // keep first 3 as done
+        t.status = 'waiting'; t.progress = 0; t.elapsed = 0;
+      }
+    });
+    document.getElementById('qBtnStart').disabled = false;
+    document.getElementById('qBtnStart').style.display = '';
+    document.getElementById('qBtnPause').style.display = 'none';
+    qRender();
+  }
+
+  qRender();
+</script>
+
+</body>
+</html>

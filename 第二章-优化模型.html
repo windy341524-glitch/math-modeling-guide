@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>第二章 · 优化模型 — 数学建模系列</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --heading: 'Noto Sans SC', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+      --accent: oklch(0.55 0.22 30);
+      --accent-light: oklch(0.72 0.14 30);
+      --accent-glow: oklch(0.60 0.28 30);
+      --blue: oklch(0.55 0.22 250);
+      --blue-light: oklch(0.72 0.14 250);
+      --success: oklch(0.65 0.20 155);
+      --teal: oklch(0.60 0.18 185);
+      --bg-deep: oklch(0.13 0.015 250);
+      --bg-surface: oklch(0.17 0.015 250);
+      --text: oklch(0.95 0.005 250);
+      --text-muted: oklch(0.65 0.02 250);
+      --border: oklch(0.28 0.02 250);
+    }
+    html { scroll-behavior: smooth; overflow-x: hidden; }
+    body { background: var(--bg-deep); color: var(--text); font-family: var(--heading); line-height: 1.6; overflow-x: hidden; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .section {
+      min-height: 100vh;
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 80px 10vw; position: relative; overflow: hidden;
+    }
+    .section-kicker {
+      font-family: var(--mono); font-size: 13px; font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 16px;
+      opacity: 0; transform: translateY(20px);
+    }
+    .section-title {
+      font-size: clamp(40px, 6vw, 80px); font-weight: 900;
+      line-height: 1.1; letter-spacing: -0.02em;
+      margin-bottom: 16px; opacity: 0; transform: translateY(30px);
+    }
+    .section-summary {
+      font-size: clamp(18px, 2vw, 22px); font-weight: 300;
+      line-height: 1.7; color: var(--text-muted);
+      max-width: 640px; margin-bottom: 48px;
+      opacity: 0; transform: translateY(20px);
+    }
+    .animate-in { opacity: 0; transform: translateY(40px); }
+    .animate-in.visible { animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes scaleIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+    @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+    @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+    @keyframes drawLine { from { stroke-dashoffset: 800; } to { stroke-dashoffset: 0; } }
+
+    /* Hero */
+    .hero {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 40px; position: relative;
+      background: radial-gradient(ellipse at 50% 30%, oklch(0.20 0.06 30) 0%, var(--bg-deep) 70%);
+    }
+    .hero-grid {
+      position: absolute; inset: 0;
+      background-image: linear-gradient(oklch(0.22 0.015 250 / 0.3) 1px, transparent 1px),
+        linear-gradient(90deg, oklch(0.22 0.015 250 / 0.3) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+    }
+    .hero-badge {
+      font-family: var(--mono); font-size: 12px; letter-spacing: 0.15em;
+      text-transform: uppercase; color: var(--accent);
+      border: 1px solid oklch(0.35 0.08 30); padding: 6px 20px;
+      border-radius: 100px; margin-bottom: 32px;
+      opacity: 0; animation: slideUp 0.6s 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .hero-title {
+      font-size: clamp(48px, 8vw, 100px); font-weight: 900;
+      line-height: 1.05; letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--text) 40%, var(--accent-light) 100%);
+      background-size: 200% 200%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      animation: gradientShift 6s ease infinite, slideUp 0.8s 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      opacity: 0; margin-bottom: 20px;
+    }
+    .hero-sub {
+      font-size: clamp(18px, 2.5vw, 26px); font-weight: 300;
+      color: var(--text-muted); max-width: 560px;
+      opacity: 0; animation: slideUp 0.7s 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .hero-scroll-hint {
+      position: absolute; bottom: 40px; display: flex;
+      flex-direction: column; align-items: center; gap: 8px;
+      color: var(--text-muted); font-size: 12px; font-family: var(--mono);
+      letter-spacing: 0.1em; opacity: 0; animation: fadeIn 1s 1.5s forwards;
+    }
+    .hero-scroll-hint .arrow {
+      width: 20px; height: 20px;
+      border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+      transform: rotate(45deg); animation: float 2s ease-in-out infinite;
+    }
+
+    /* Pipeline */
+    .pipeline {
+      display: flex; align-items: center; gap: 0;
+      flex-wrap: wrap; justify-content: center; margin-top: 20px;
+    }
+    .pipeline-node {
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px 28px; border-radius: 12px;
+      font-size: 16px; font-weight: 600; white-space: nowrap;
+    }
+    .pipeline-node.obj { background: oklch(0.25 0.08 30); color: var(--accent-light); border: 1px solid oklch(0.35 0.08 30); }
+    .pipeline-node.var { background: oklch(0.25 0.08 250); color: var(--blue-light); border: 1px solid oklch(0.35 0.08 250); }
+    .pipeline-node.con { background: oklch(0.25 0.08 155); color: var(--success); border: 1px solid oklch(0.35 0.08 155); }
+    .pipeline-node.opt { background: oklch(0.25 0.06 185); color: var(--teal); border: 1px solid oklch(0.35 0.06 185); }
+    .pipeline-arrow { font-size: 24px; color: var(--text-muted); padding: 0 8px; opacity: 0.5; }
+
+    /* Cards */
+    .method-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;
+    }
+    .method-card {
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 32px; position: relative; overflow: hidden;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .method-card:hover {
+      border-color: var(--accent); transform: translateY(-6px);
+      box-shadow: 0 20px 60px -20px oklch(0.55 0.22 30 / 0.15);
+    }
+    .method-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      transform: scaleX(0); transform-origin: left; transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .method-card:hover::before { transform: scaleX(1); }
+    .method-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: 18px; font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .method-card:nth-child(1) .method-icon { background: oklch(0.25 0.08 30); color: var(--accent-light); }
+    .method-card:nth-child(2) .method-icon { background: oklch(0.25 0.08 250); color: var(--blue-light); }
+    .method-card:nth-child(3) .method-icon { background: oklch(0.25 0.08 155); color: var(--success); }
+    .method-card:nth-child(4) .method-icon { background: oklch(0.25 0.06 185); color: var(--teal); }
+    .method-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .method-subtitle { font-size: 12px; color: var(--accent); font-family: var(--mono); margin-bottom: 14px; }
+    .method-desc { font-size: 14px; font-weight: 300; line-height: 1.8; color: var(--text-muted); }
+    .method-formula {
+      margin-top: 16px; padding: 14px 18px;
+      background: oklch(0.14 0.015 250); border-radius: 10px;
+      font-family: var(--mono); font-size: 13px; color: var(--accent-light);
+      overflow-x: auto; border-left: 3px solid oklch(0.35 0.08 30);
+      line-height: 1.7;
+    }
+    .method-tags {
+      display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap;
+    }
+    .method-tag {
+      font-family: var(--mono); font-size: 10px; font-weight: 500;
+      padding: 3px 8px; border-radius: 4px;
+      background: oklch(0.20 0.02 250); color: var(--text-muted);
+    }
+
+    /* Steps */
+    .steps-timeline {
+      display: flex; flex-direction: column; gap: 0; max-width: 700px;
+    }
+    .step-item {
+      display: flex; align-items: flex-start; gap: 20px; padding: 20px 0;
+      position: relative;
+    }
+    .step-item::before {
+      content: ''; position: absolute; left: 19px; top: 52px; bottom: -20px;
+      width: 2px; background: linear-gradient(to bottom, var(--accent), transparent);
+    }
+    .step-item:last-child::before { display: none; }
+    .step-dot {
+      width: 40px; height: 40px; min-width: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: 14px; font-weight: 700;
+      background: oklch(0.22 0.04 30); color: var(--accent-light);
+      border: 2px solid oklch(0.35 0.06 30); z-index: 1;
+    }
+    .step-label { font-size: 17px; font-weight: 700; color: var(--text); padding-top: 7px; }
+    .step-note { font-size: 13px; color: var(--text-muted); font-weight: 300; margin-top: 4px; line-height: 1.6; }
+
+    /* SVG Diagram */
+    .svg-wrap {
+      max-width: 600px; margin: 0 auto;
+    }
+    .svg-wrap svg text {
+      font-family: var(--mono);
+    }
+
+    /* Comparison table */
+    .compare-table {
+      width: 100%; max-width: 800px; border-collapse: separate; border-spacing: 0;
+      border-radius: 12px; overflow: hidden; border: 1px solid var(--border);
+    }
+    .compare-table th {
+      background: oklch(0.20 0.03 30); color: var(--accent-light);
+      font-family: var(--mono); font-size: 12px; font-weight: 600;
+      padding: 14px 18px; text-align: left; letter-spacing: 0.05em;
+    }
+    .compare-table td {
+      background: var(--bg-surface); color: var(--text-muted);
+      font-size: 13px; padding: 12px 18px;
+      border-top: 1px solid var(--border);
+    }
+    .compare-table tr:hover td { background: oklch(0.19 0.015 250); }
+
+    /* Counters */
+    .counter-row { display: flex; gap: 48px; flex-wrap: wrap; margin: 32px 0; }
+    .counter-item { display: flex; flex-direction: column; }
+    .counter-value {
+      font-family: var(--mono); font-size: clamp(36px, 5vw, 56px);
+      font-weight: 700; color: var(--accent-light); line-height: 1;
+    }
+    .counter-label { font-size: 13px; font-weight: 400; color: var(--text-muted); margin-top: 8px; }
+
+    /* Background */
+    .bg-glow {
+      position: absolute; width: 500px; height: 500px; border-radius: 50%;
+      filter: blur(120px); opacity: 0.15; pointer-events: none;
+    }
+    .bg-glow.warm { background: var(--accent); }
+    .bg-glow.blue { background: var(--blue); }
+
+    /* Progress bar */
+    .progress-bar {
+      position: fixed; top: 0; left: 0; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      z-index: 9999; transition: width 0.1s linear;
+    }
+
+    /* Nav dots */
+    .nav-dots {
+      position: fixed; right: 24px; top: 50%; transform: translateY(-50%);
+      display: flex; flex-direction: column; gap: 12px; z-index: 100;
+    }
+    .nav-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--border);
+      border: none; cursor: pointer; transition: all 0.3s; padding: 0;
+    }
+    .nav-dot.active {
+      background: var(--accent); box-shadow: 0 0 12px oklch(0.55 0.22 30 / 0.5);
+      transform: scale(1.3);
+    }
+
+    /* Back link */
+    .back-link {
+      position: fixed; top: 16px; left: 24px; z-index: 200;
+      font-family: var(--mono); font-size: 12px; color: var(--text-muted);
+      text-decoration: none; display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
+      background: oklch(0.15 0.015 250 / 0.8); backdrop-filter: blur(12px);
+      transition: all 0.2s;
+    }
+    .back-link:hover { color: var(--accent-light); border-color: var(--accent); }
+
+    @media (max-width: 768px) {
+      .section { padding: 60px 24px; }
+      .pipeline { flex-direction: column; }
+      .pipeline-arrow { transform: rotate(90deg); }
+      .nav-dots { display: none; }
+      .counter-row { gap: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<a class="back-link" href="数学建模基础-动画演示.html">← 返回目录</a>
+<div class="progress-bar" id="progressBar"></div>
+<nav class="nav-dots" id="navDots"></nav>
+
+<!-- ========== HERO ========== -->
+<section class="hero" id="s0">
+  <div class="hero-grid"></div>
+  <div class="hero-badge">Chapter 02 · Optimization</div>
+  <h1 class="hero-title">优化模型</h1>
+  <p class="hero-sub">在约束条件下寻找最优决策，让每一份资源都发挥最大价值</p>
+  <div class="pipeline animate-in" style="margin-top: 48px;">
+    <div class="pipeline-node obj">目标函数</div>
+    <span class="pipeline-arrow">+</span>
+    <div class="pipeline-node var">决策变量</div>
+    <span class="pipeline-arrow">+</span>
+    <div class="pipeline-node con">约束条件</div>
+    <span class="pipeline-arrow">→</span>
+    <div class="pipeline-node opt">最优解</div>
+  </div>
+  <div class="hero-scroll-hint"><span>SCROLL</span><div class="arrow"></div></div>
+</section>
+
+<!-- ========== SECTION 1: LP ========== -->
+<section class="section" id="s1">
+  <div class="bg-glow warm" style="top: -200px; right: -200px;"></div>
+  <span class="section-kicker animate-in">01 线性规划</span>
+  <h2 class="section-title animate-in">Linear Programming</h2>
+  <p class="section-summary animate-in">最基础也最强大的优化方法 — 目标函数与约束条件均为线性</p>
+
+  <div class="method-grid">
+    <div class="method-card animate-in">
+      <div class="method-icon">LP</div>
+      <div class="method-name">标准形式</div>
+      <div class="method-subtitle">Standard Form</div>
+      <div class="method-desc">所有线性规划问题都可以转化为标准形式：在线性等式约束下，最小化线性目标函数。</div>
+      <div class="method-formula">min  c<sup>T</sup>x<br>s.t. Ax = b<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x ≥ 0</div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">S</div>
+      <div class="method-name">单纯形法</div>
+      <div class="method-subtitle">Simplex Method</div>
+      <div class="method-desc">沿可行域顶点迭代搜索。虽然最坏情况是指数级，但在实践中通常非常高效。由 Dantzig 于 1947 年提出。</div>
+      <div class="method-formula">1. 找初始基可行解<br>2. 检验数判断最优<br>3. 换基迭代直到最优</div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">D</div>
+      <div class="method-name">对偶理论</div>
+      <div class="method-subtitle">Duality Theory</div>
+      <div class="method-desc">每个线性规划问题都有一个对偶问题。强对偶定理：原问题与对偶问题的最优值相等。对偶变量即为影子价格。</div>
+      <div class="method-formula">原问题 min c<sup>T</sup>x<br>对偶 max b<sup>T</sup>y<br>s.t. A<sup>T</sup>y ≤ c</div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">~</div>
+      <div class="method-name">灵敏度分析</div>
+      <div class="method-subtitle">Sensitivity Analysis</div>
+      <div class="method-desc">分析参数变化对最优解的影响。哪些资源最紧缺？目标函数系数变化多少不影响方案？</div>
+      <div class="method-formula">影子价格 = ∂z*/∂bᵢ<br>允许变化范围<br>保持当前基最优</div>
+    </div>
+  </div>
+
+  <div class="counter-row animate-in" style="margin-top: 48px;">
+    <div class="counter-item"><span class="counter-value" data-target="1947">0</span><span class="counter-label">单纯形法诞生年</span></div>
+    <div class="counter-item"><span class="counter-value" data-target="2">0</span><span class="counter-label">核心定理</span></div>
+    <div class="counter-item"><span class="counter-value" data-target="3">0</span><span class="counter-label">标准变换步骤</span></div>
+  </div>
+</section>
+
+<!-- ========== SECTION 2: Integer & Nonlinear ========== -->
+<section class="section" id="s2">
+  <div class="bg-glow blue" style="bottom: -200px; left: -200px;"></div>
+  <span class="section-kicker animate-in">02 整数规划 & 非线性规划</span>
+  <h2 class="section-title animate-in">进阶优化方法</h2>
+  <p class="section-summary animate-in">当决策变量必须取整，或目标函数非线性时的求解策略</p>
+
+  <div class="method-grid">
+    <div class="method-card animate-in">
+      <div class="method-icon">IP</div>
+      <div class="method-name">整数规划</div>
+      <div class="method-subtitle">Integer Programming</div>
+      <div class="method-desc">决策变量要求取整数。0-1 规划是其特例，用于建模"是否选择"类问题。NPC 问题，常用分支定界法求解。</div>
+      <div class="method-formula">min c<sup>T</sup>x<br>s.t. Ax ≤ b<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x ∈ Z<sup>n</sup></div>
+      <div class="method-tags"><span class="method-tag">分支定界</span><span class="method-tag">割平面</span><span class="method-tag">0-1规划</span></div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">N</div>
+      <div class="method-name">非线性规划</div>
+      <div class="method-subtitle">Nonlinear Programming</div>
+      <div class="method-desc">目标函数或约束中存在非线性项。求解方法取决于问题的凸性——凸优化有全局最优保证，非凸则可能陷入局部最优。</div>
+      <div class="method-formula">min f(x)<br>s.t. gᵢ(x) ≤ 0<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;hⱼ(x) = 0</div>
+      <div class="method-tags"><span class="method-tag">KKT条件</span><span class="method-tag">梯度下降</span><span class="method-tag">拉格朗日乘子</span></div>
+    </div>
+  </div>
+
+  <!-- Comparison table -->
+  <div style="margin-top: 40px;" class="animate-in">
+    <table class="compare-table">
+      <thead>
+        <tr><th>特性</th><th>线性规划</th><th>整数规划</th><th>非线性规划</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>目标函数</td><td>线性</td><td>线性</td><td>非线性</td></tr>
+        <tr><td>可行域形状</td><td>凸多面体</td><td>离散点集</td><td>一般集合</td></tr>
+        <tr><td>最优解位置</td><td>顶点处</td><td>离散点</td><td>任意位置</td></tr>
+        <tr><td>计算复杂度</td><td>多项式(内点法)</td><td>NP-Complete</td><td>取决于凸性</td></tr>
+        <tr><td>典型算法</td><td>单纯形法、内点法</td><td>分支定界、割平面</td><td>梯度下降、SQP</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ========== SECTION 3: Dynamic Programming ========== -->
+<section class="section" id="s3">
+  <div class="bg-glow warm" style="top: -200px; left: 50%;"></div>
+  <span class="section-kicker animate-in">03 动态规划</span>
+  <h2 class="section-title animate-in">Dynamic Programming</h2>
+  <p class="section-summary animate-in">将复杂问题分解为重叠子问题，通过最优子结构递推求解</p>
+
+  <div class="steps-timeline">
+    <div class="step-item animate-in">
+      <div class="step-dot">1</div>
+      <div><div class="step-label">定义状态</div><div class="step-note">确定描述问题进展的状态变量 s，通常需要能唯一标识每个子问题</div></div>
+    </div>
+    <div class="step-item animate-in">
+      <div class="step-dot">2</div>
+      <div><div class="step-label">状态转移方程</div><div class="step-note">找到从已知状态推导未知状态的递推关系 — 这是 DP 的核心</div></div>
+    </div>
+    <div class="step-item animate-in">
+      <div class="step-dot">3</div>
+      <div><div class="step-label">确定边界</div><div class="step-note">给出初始条件（base case），通常是问题规模最小时的直接解</div></div>
+    </div>
+    <div class="step-item animate-in">
+      <div class="step-dot">4</div>
+      <div><div class="step-label">计算顺序</div><div class="step-note">自底向上（递推）或自顶向下（记忆化搜索），确保计算某状态时其依赖状态已求出</div></div>
+    </div>
+    <div class="step-item animate-in">
+      <div class="step-dot">5</div>
+      <div><div class="step-label">回溯最优方案</div><div class="step-note">根据记录的决策路径，从最终状态反向追踪得到最优解对应的具体方案</div></div>
+    </div>
+  </div>
+
+  <div class="method-grid" style="margin-top: 40px;">
+    <div class="method-card animate-in">
+      <div class="method-icon">K</div>
+      <div class="method-name">背包问题</div>
+      <div class="method-subtitle">Knapsack Problem</div>
+      <div class="method-desc">DP 经典。给定背包容量和物品重量/价值，选择物品使总价值最大。状态转移：dp[i][w] = max(dp[i-1][w], dp[i-1][w-wᵢ]+vᵢ)</div>
+      <div class="method-formula">dp[i][w] = max(<br>&nbsp;&nbsp;dp[i-1][w],<br>&nbsp;&nbsp;dp[i-1][w-wᵢ] + vᵢ<br>)</div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon">R</div>
+      <div class="method-name">资源分配</div>
+      <div class="method-subtitle">Resource Allocation</div>
+      <div class="method-desc">将有限资源分配给多个阶段/项目使总收益最大。典型 DP 应用：阶段 × 资源量构成二维状态空间。</div>
+      <div class="method-formula">f(k, r) = max<sub>0≤x≤r</sub>{<br>&nbsp;&nbsp;g(k, x) + f(k+1, r-x)<br>}</div>
+    </div>
+  </div>
+
+  <div class="counter-row animate-in" style="margin-top: 48px;">
+    <div class="counter-item"><span class="counter-value" data-target="2">0</span><span class="counter-label">核心性质</span></div>
+    <div class="counter-item"><span class="counter-value" data-target="5">0</span><span class="counter-label">建模步骤</span></div>
+    <div class="counter-item"><span class="counter-value" data-target="O">0</span><span class="counter-label">最优子结构+重叠子问题</span></div>
+  </div>
+</section>
+
+<!-- ========== SECTION 4: Applications ========== -->
+<section class="section" id="s4">
+  <div class="bg-glow blue" style="top: 50%; right: -300px;"></div>
+  <span class="section-kicker animate-in">04 竞赛应用</span>
+  <h2 class="section-title animate-in">实战指南</h2>
+  <p class="section-summary animate-in">优化模型在数学建模竞赛中的高频应用场景</p>
+
+  <div class="method-grid">
+    <div class="method-card animate-in">
+      <div class="method-icon" style="font-size: 24px;">&#x1F69A;</div>
+      <div class="method-name">运输调度</div>
+      <div class="method-subtitle">Transportation Problem</div>
+      <div class="method-desc">经典的产销平衡问题。多个供应点到多个需求点的最优运输方案，目标是总运费最小。可扩展为转运问题。</div>
+      <div class="method-tags"><span class="method-tag">LP</span><span class="method-tag">表上作业法</span><span class="method-tag">伏格尔法</span></div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon" style="font-size: 24px;">&#x1F4E6;</div>
+      <div class="method-name">选址问题</div>
+      <div class="method-subtitle">Facility Location</div>
+      <div class="method-desc">在候选位置中选择设施点，使建设成本与运输成本之和最小。典型 0-1 整数规划问题。</div>
+      <div class="method-tags"><span class="method-tag">MIP</span><span class="method-tag">0-1规划</span><span class="method-tag">覆盖模型</span></div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon" style="font-size: 24px;">&#x1F504;</div>
+      <div class="method-name">排班调度</div>
+      <div class="method-subtitle">Scheduling</div>
+      <div class="method-desc">员工排班、任务调度、机器作业排序。目标通常是最大化效率或最小化等待时间。NP-hard，启发式求解。</div>
+      <div class="method-tags"><span class="method-tag">IP</span><span class="method-tag">贪心</span><span class="method-tag">遗传算法</span></div>
+    </div>
+    <div class="method-card animate-in">
+      <div class="method-icon" style="font-size: 24px;">&#x1F4A1;</div>
+      <div class="method-name">投资组合</div>
+      <div class="method-subtitle">Portfolio Optimization</div>
+      <div class="method-desc">Markowitz 均值-方差模型。在给定期望收益下最小化风险（方差），或在给定风险下最大化收益。二次规划。</div>
+      <div class="method-formula">min &frac12; x<sup>T</sup>&Sigma;x<br>s.t. &mu;<sup>T</sup>x ≥ r₀<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1<sup>T</sup>x = 1</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== Footer ========== -->
+<footer style="text-align: center; padding: 60px 24px 40px; border-top: 1px solid var(--border);">
+  <a href="数学建模基础-动画演示.html" style="color: var(--accent-light); font-family: var(--mono); font-size: 13px; text-decoration: none; border: 1px solid var(--border); padding: 8px 20px; border-radius: 8px; transition: all 0.2s;">← 返回课程目录</a>
+  <p style="font-family: var(--mono); font-size: 12px; color: var(--text-muted); letter-spacing: 0.1em; margin-top: 20px;">
+    CHAPTER 02 · OPTIMIZATION MODELS — ANIMATED GUIDE
+  </p>
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        const siblings = el.parentElement.querySelectorAll('.animate-in');
+        let delay = 0;
+        siblings.forEach(sib => {
+          if (sib === el) { el.style.animationDelay = delay + 'ms'; el.classList.add('visible'); }
+          if (!sib.classList.contains('visible')) delay += 80;
+        });
+        if (!el.classList.contains('visible')) { el.style.animationDelay = '0ms'; el.classList.add('visible'); }
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.animate-in').forEach(el => observer.observe(el));
+
+  const counterObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.querySelectorAll('[data-target]').forEach(c => {
+          const t = c.dataset.target;
+          if (isNaN(t)) { c.textContent = t; return; }
+          const target = parseInt(t), dur = 1200, start = performance.now();
+          (function tick(now) {
+            const p = Math.min((now - start) / dur, 1);
+            c.textContent = Math.round((1 - Math.pow(1 - p, 3)) * target);
+            if (p < 1) requestAnimationFrame(tick);
+          })(performance.now());
+        });
+        counterObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('.counter-row').forEach(el => counterObserver.observe(el));
+
+  const progressBar = document.getElementById('progressBar');
+  window.addEventListener('scroll', () => {
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    progressBar.style.width = (window.scrollY / h * 100) + '%';
+  });
+
+  const sections = document.querySelectorAll('section[id]');
+  const navDotsContainer = document.getElementById('navDots');
+  const dots = [];
+  sections.forEach((sec, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'nav-dot';
+    dot.title = sec.querySelector('.section-title, .hero-title')?.textContent || '';
+    dot.addEventListener('click', () => sec.scrollIntoView({ behavior: 'smooth' }));
+    navDotsContainer.appendChild(dot);
+    dots.push(dot);
+  });
+  const dotObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const idx = Array.from(sections).indexOf(entry.target);
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+      }
+    });
+  }, { threshold: 0.4 });
+  sections.forEach(sec => dotObserver.observe(sec));
+</script>
+</body>
+</html>
