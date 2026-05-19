@@ -262,67 +262,42 @@ body{background:radial-gradient(ellipse 80% 60% at 50% 40%,#131820 0%,#0e1117 10
   ];
   const audio = new Audio();
   let started = false, playing = false, muted = false;
-  let autoAdvancing = false; // true while waiting to auto-advance after audio ends
+  let audioDone = false; // true when current slide's audio has finished
   const aTitle = document.getElementById('aTitle');
   const aProg = document.getElementById('aProg');
   const aPlay = document.getElementById('aPlay');
   const aMute = document.getElementById('aMute');
 
-  // --- Audio-driven reveal ---
-  // When audio is playing, steps reveal based on currentTime.
-  // When audio ends, auto-advance to next slide after a short pause.
-  function getStepTimes(n){
-    // Returns an array of timestamps [t0, t1, ...] at which each step should reveal.
-    // Steps are evenly distributed across the audio duration.
-    const dur = audio.duration || 30;
-    const count = stepCounts[n];
-    if(count <= 1) return [0];
-    // First step at 0.5s (give a moment), then evenly after
-    const interval = (dur - 0.5) / count;
-    const times = [];
-    for(let i = 0; i < count; i++){
-      times.push(0.5 + interval * i);
-    }
-    return times;
-  }
-
-  audio.addEventListener('timeupdate',()=>{
-    if(!started || !audio.duration) return;
-    // Update progress bar
-    aProg.style.width = (audio.currentTime / audio.duration * 100) + '%';
-    // Check if next step should reveal
-    const times = getStepTimes(si);
-    while(step < times.length - 1 && audio.currentTime >= times[step + 1]){
-      step++;
-      showStep(si, step);
-    }
-  });
-
-  audio.addEventListener('ended',()=>{
-    playing = false;
-    aPlay.innerHTML = '&#9654;';
-    // Reveal any remaining steps that weren't shown
-    while(step < stepCounts[si] - 1){ step++; showStep(si, step); }
-    // Auto-advance to next slide after a pause
-    if(si < TOTAL - 1){
-      autoAdvancing = true;
-      setTimeout(()=>{
-        autoAdvancing = false;
-        if(si < TOTAL - 1) goSlide(si + 1);
-      }, 1200);
-    }
-  });
-
+  // --- Audio: only plays AFTER all steps are revealed ---
   function playAudio(n){
     audio.pause();
     audio.src = CH[n].f;
     audio.currentTime = 0;
     audio.play().then(()=>{
       playing = true;
+      audioDone = false;
       aPlay.innerHTML = '&#10074;&#10074;';
       aTitle.textContent = CH[n].l;
     }).catch(()=>{});
   }
+
+  audio.addEventListener('timeupdate',()=>{
+    if(!audio.duration) return;
+    aProg.style.width = (audio.currentTime / audio.duration * 100) + '%';
+  });
+
+  audio.addEventListener('ended',()=>{
+    playing = false;
+    audioDone = true;
+    aPlay.innerHTML = '&#9654;';
+    // Auto-advance to next slide after a pause
+    if(si < TOTAL - 1){
+      setTimeout(()=>{
+        // Only auto-advance if we're still on the same slide and audio is still done
+        if(audioDone && si < TOTAL - 1) goSlide(si + 1);
+      }, 1500);
+    }
+  });
 
   aPlay.addEventListener('click',()=>{
     if(!started){ started = true; goSlide(0); return; }
@@ -351,38 +326,60 @@ body{background:radial-gradient(ellipse 80% 60% at 50% 40%,#131820 0%,#0e1117 10
     hbarF.style.width = ((si+1)/TOTAL*100)+'%';
   }
 
+  function allStepsRevealed(){
+    return step >= stepCounts[si] - 1;
+  }
+
   // --- Navigation ---
   function goSlide(n){
-    if(n < 0 || n >= TOTAL || n === si) return;
-    autoAdvancing = false;
+    if(n < 0 || n >= TOTAL) return;
     audio.pause();
+    playing = false;
+    audioDone = false;
     hideSlide(si);
     si = n; step = 0;
     slides[si].classList.add('active');
     showStep(si, 0);
     updateHUD();
-    if(started) playAudio(si);
+    aPlay.innerHTML = '&#9654;';
+    aTitle.textContent = '';
+    aProg.style.width = '0%';
+    // Don't play audio yet — wait for all steps to be revealed
   }
 
   function forward(){
     if(!started){ started = true; goSlide(0); return; }
-    // Cancel any pending auto-advance
-    autoAdvancing = false;
-    // If current slide has unrevealed steps, show all remaining then let audio continue
-    if(step < stepCounts[si] - 1){
-      const times = getStepTimes(si);
-      // Reveal all remaining steps immediately
-      while(step < stepCounts[si] - 1){ step++; showStep(si, step); }
-      // Seek audio forward to match current step
-      if(audio.duration && times[step]) audio.currentTime = times[step];
+
+    // If not all steps revealed yet → reveal next step
+    if(!allStepsRevealed()){
+      step++;
+      showStep(si, step);
+      // If this was the last step, start audio automatically
+      if(allStepsRevealed()){
+        playAudio(si);
+      }
       return;
     }
-    // All steps shown — go to next slide
+
+    // All steps shown AND audio is playing → let user skip to next slide
+    if(playing){
+      audio.pause();
+      playing = false;
+    }
+
+    // All steps shown → go to next slide
     if(si < TOTAL - 1) goSlide(si + 1);
   }
 
   function backward(){
-    autoAdvancing = false;
+    // If audio is playing, stop it
+    if(playing){
+      audio.pause();
+      playing = false;
+      audioDone = false;
+      aPlay.innerHTML = '&#9654;';
+    }
+
     if(step > 0){
       // Hide current step
       slides[si].querySelectorAll('.reveal').forEach(el=>{
@@ -390,20 +387,20 @@ body{background:radial-gradient(ellipse 80% 60% at 50% 40%,#131820 0%,#0e1117 10
         if(s >= step) el.classList.remove('show');
       });
       step--;
-      // Seek audio back to match
-      const times = getStepTimes(si);
-      if(audio.duration && times[step] != null) audio.currentTime = times[step];
       return;
     }
-    // At first step — go to previous slide, show its last step
+
+    // At first step — go to previous slide
     if(si > 0){
       hideSlide(si);
       si--;
+      // Show all steps of previous slide (it was already fully revealed)
       step = stepCounts[si] - 1;
       slides[si].classList.add('active');
       showStep(si, step);
       updateHUD();
-      if(started) playAudio(si);
+      // Play its audio
+      playAudio(si);
     }
   }
 
@@ -423,7 +420,7 @@ body{background:radial-gradient(ellipse 80% 60% at 50% 40%,#131820 0%,#0e1117 10
     if(Math.abs(dx) > 60){ dx < 0 ? forward() : backward(); }
   },{passive:true});
 
-  // Init — show first step of first slide, wait for user click to start audio
+  // Init — show first step of first slide, wait for user click
   showStep(0, 0);
   updateHUD();
 })();
